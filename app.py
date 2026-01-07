@@ -414,7 +414,7 @@ def page_elastic_modulus():
     ax.set_xlabel("Strain Rate (1/s)", fontsize=14)
     ax.set_ylabel("Elastic Modulus (MPa)", fontsize=14)
     ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)", fontsize=16)
-    ax.legend()
+    ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
     add_watermark(ax)
     st.pyplot(fig)
 
@@ -439,4 +439,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
