@@ -117,9 +117,6 @@ def page_load_and_visualize():
                 st.session_state.data = df
                 st.success(f"Loaded {len(df)} rows.")
                 
-                # Show Data Preview
-                # with st.expander("Show Data Preview"):
-                #     st.dataframe(df.head())
 
                 # ==========================================
                 # PLOTTING SECTION (Merged from Raw & 3D)
@@ -512,6 +509,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
