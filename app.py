@@ -9,7 +9,6 @@ from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
 from colorsys import rgb_to_hls
-import io
 
 # ==========================================
 # Configuration & Global Styles
@@ -51,11 +50,12 @@ def storage_modulus_model(log_omega, a, b, c, d):
     return a * np.tanh(b * (log_omega + c)) + d
 
 def Etime_time_cycle(time, cycle, a, b, c, d):
-    """Calculates E(t) based on the fitted parameters."""
+    """Calculates E(t) based on the fitted parameters using the integration method."""
     Etime = np.zeros_like(time)
     N1, N2, N3 = 240, 74, 24
     
     def E_prime(w, a, b, c, d):
+        # Model expects log(w)
         return a * np.tanh(b * (np.log(w) + c)) + d
         
     def integrand(t_val, E_prime_w, w_val):
@@ -63,10 +63,12 @@ def Etime_time_cycle(time, cycle, a, b, c, d):
         
     for i, t_val in enumerate(time):
         if t_val == 0: continue
-        # Integration ranges
+        # Integration ranges based on cycle and time
         w1 = np.linspace(1e-6 / t_val, cycle * 0.1 * 2 * np.pi / t_val, int(cycle * 0.1 * N1) + 1)
         w2 = np.linspace(cycle * 0.1 * 2 * np.pi / t_val, cycle * 0.4 * 2 * np.pi / t_val, int(cycle * 0.3 * N2) + 1)
         w3 = np.linspace(cycle * 0.4 * 2 * np.pi / t_val, cycle * 2 * np.pi / t_val, int(cycle * 0.6 * N3) + 1)
+        
+        # Combine ranges, skipping duplicates at boundaries
         all_w = np.concatenate([w1, w2[1:], w3[1:]])
         
         y = integrand(t_val, E_prime(all_w, a, b, c, d), all_w)
@@ -101,15 +103,25 @@ def page_load_data():
         if uploaded_file:
             try:
                 df = pd.read_csv(uploaded_file)
-                # Ensure numeric types
-                df['Frequency'] = pd.to_numeric(df['Frequency'], errors='coerce')
-                df['Storage Modulus'] = pd.to_numeric(df['Storage Modulus'], errors='coerce')
-                df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
-                df.dropna(subset=['Frequency', 'Storage Modulus', 'Temperature'], inplace=True)
+                # Standardize column names (optional, but good practice)
+                # Here we assume the user uploads files with these exact headers as per the original tool
                 
-                st.session_state.data = df
-                st.success(f"Loaded {len(df)} rows successfully.")
-                st.dataframe(df.head())
+                # Ensure numeric types
+                cols_to_check = ['Frequency', 'Storage Modulus', 'Temperature']
+                missing_cols = [c for c in cols_to_check if c not in df.columns]
+                
+                if missing_cols:
+                    st.error(f"Missing columns: {missing_cols}")
+                else:
+                    df['Frequency'] = pd.to_numeric(df['Frequency'], errors='coerce')
+                    df['Storage Modulus'] = pd.to_numeric(df['Storage Modulus'], errors='coerce')
+                    df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
+                    
+                    df.dropna(subset=cols_to_check, inplace=True)
+                    
+                    st.session_state.data = df
+                    st.success(f"Loaded {len(df)} rows successfully.")
+                    st.dataframe(df.head())
             except Exception as e:
                 st.error(f"Error loading file: {e}")
 
@@ -139,8 +151,10 @@ def page_raw_data():
     
     for i, temp in enumerate(temps):
         subdata = data[data['Temperature'] == temp].sort_values('Frequency')
+        # Use a cyclical color picker
+        color = darker[i % len(darker)]
         ax.semilogx(subdata['Frequency'], subdata['Storage Modulus'], 
-                    color=darker[i % len(darker)], label=f"{temp} °C", linewidth=1.5, marker='o', markersize=4)
+                    color=color, label=f"{temp} °C", linewidth=1.5, marker='o', markersize=4)
 
     ax.set_xscale('log')
     ax.set_xlabel('Frequency (Hz)', fontsize=14)
@@ -162,14 +176,12 @@ def page_3d_surface():
 
     data = st.session_state.data
     
+    # Prepare data
     X = data['Temperature']
-    Y = np.log10(data['Frequency']) # Log scale for frequency in mesh usually looks better or linear freq axis
-    # The original code uses linear Frequency for meshgrid but data is often log. 
-    # Let's stick to original code logic: raw values.
     Y = data['Frequency']
     Z = data['Storage Modulus']
 
-    # Interpolation for surface
+    # Grid for interpolation
     x_grid, y_grid = np.meshgrid(
         np.linspace(X.max(), X.min(), 100),
         np.linspace(Y.min(), Y.max(), 100)
@@ -194,7 +206,8 @@ def page_3d_surface():
     cbar = fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
     cbar.set_label('Storage Modulus (MPa)')
     
-    add_watermark(ax, on_axes=True)
+    # Standard watermark call
+    add_watermark(ax)
     st.pyplot(fig)
 
 
@@ -226,27 +239,24 @@ def page_analysis_tts():
         for temp in temperatures:
             df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
             
-            # Find overlap point: max freq of current vs existing master curve
-            # Simple heuristic from original code: match modulus at boundaries
+            # Find overlap: Max freq of current master curve vs Data
+            # Heuristic: Match the modulus value at the boundary
             max_freq = df_temp["Frequency"].max()
-            modulus_at_max = df_temp.iloc[-1]["Storage Modulus"] # Assuming sorted
+            modulus_at_max = df_temp.iloc[-1]["Storage Modulus"] 
             
-            # Find closest modulus in the extended data constructed so far
+            # Find closest modulus in the accumulated data
             idx = (extended_data["Storage Modulus"] - modulus_at_max).abs().idxmin()
             closest_match_freq = extended_data.loc[idx, "Frequency"]
             
-            # Calculate shift factor
-            # Shift factor aT = f_ref / f_temp. 
-            # Original code: shift_factor = closest_match["Frequency"] / max_freq
-            # This aligns the rightmost point of the current temp curve to the matching modulus point on the master curve
+            # Calculate shift factor aT
             shift_factor = closest_match_freq / max_freq
-            
             shift_factors[temp] = shift_factor
             
-            # Create shifted dataframe segment
+            # Shift the new segment
             shifted_df = df_temp.copy()
             shifted_df["Frequency"] = shifted_df["Frequency"] * shift_factor
             
+            # Add to master curve data
             extended_data = pd.concat([extended_data, shifted_df], ignore_index=True)
             extended_data = extended_data.sort_values("Frequency")
         
@@ -254,9 +264,8 @@ def page_analysis_tts():
         st.session_state.master_curve_data = extended_data
         st.success("Analysis Complete!")
 
-    # Display results if available
+    # Display results
     if st.session_state.master_curve_data is not None:
-        master_data = st.session_state.master_curve_data
         shift_factors = st.session_state.analysis_shift_factors
         
         col1, col2 = st.columns([3, 1])
@@ -265,11 +274,9 @@ def page_analysis_tts():
             fig = Figure(figsize=(10, 6))
             ax = fig.add_subplot(111)
             
-            # Plot reference
             ref_temp = min(shift_factors.keys())
-            
-            # Plot all shifted segments
             temps = sorted(st.session_state.data['Temperature'].unique())
+            
             for temp in temps:
                 sf = shift_factors.get(temp, 1.0)
                 sub = st.session_state.data[st.session_state.data['Temperature'] == temp]
@@ -285,7 +292,7 @@ def page_analysis_tts():
             st.pyplot(fig)
             
         with col2:
-            st.write("### Shift Factors (aT)")
+            st.write("### Shift Factors")
             sf_df = pd.DataFrame(list(shift_factors.items()), columns=['Temp (°C)', 'Shift Factor'])
             st.dataframe(sf_df)
 
@@ -303,8 +310,8 @@ def page_curve_fitting():
     
     with col_ctrl:
         st.subheader("Bounds")
-        a_upper = st.slider("Upper Bound for 'a'", 10.0, 2000.0, 500.0, 10.0)
-        d_upper = st.slider("Upper Bound for 'd'", 10.0, 2000.0, 500.0, 10.0)
+        a_upper = st.slider("Upper Bound for 'a'", 10.0, 5000.0, 2000.0, 10.0)
+        d_upper = st.slider("Upper Bound for 'd'", 10.0, 5000.0, 2000.0, 10.0)
         
         if st.button("Fit Curve"):
             # Prepare data
@@ -316,8 +323,11 @@ def page_curve_fitting():
             
             for t, sf in shift_factors.items():
                 sub = data[data['Temperature'] == t]
-                combined_log_freq.extend(np.log10(sub['Frequency'] * sf))
-                combined_modulus.extend(sub['Storage Modulus'])
+                # Filter > 0 for log
+                valid_sub = sub[sub['Frequency'] > 0]
+                # Use Log10 of reduced frequency for X
+                combined_log_freq.extend(np.log10(valid_sub['Frequency'] * sf))
+                combined_modulus.extend(valid_sub['Storage Modulus'])
             
             X_fit = np.array(combined_log_freq)
             Y_fit = np.array(combined_modulus)
@@ -339,28 +349,33 @@ def page_curve_fitting():
     with col_plot:
         if st.session_state.fitted_params:
             params = st.session_state.fitted_params
-            
             fig = Figure(figsize=(10, 6))
             ax = fig.add_subplot(111)
             
-            # Plot scatter data
             data = st.session_state.data
             shift_factors = st.session_state.analysis_shift_factors
+            all_x_vals = []
+            
+            # Plot Scatter
             for t in sorted(data['Temperature'].unique()):
                 sf = shift_factors.get(t, 1.0)
                 sub = data[data['Temperature'] == t]
-                ax.scatter(np.log10(sub['Frequency'] * sf), sub['Storage Modulus'], s=10, alpha=0.5, label=f"{t}C data")
+                reduced_freq = sub['Frequency'] * sf
+                # Avoid log(0)
+                mask = reduced_freq > 0
+                x_vals = np.log10(reduced_freq[mask])
+                y_vals = sub['Storage Modulus'][mask]
+                
+                all_x_vals.extend(x_vals)
+                ax.scatter(x_vals, y_vals, s=10, alpha=0.5, label=f"{t}C")
 
-            # Plot Fit
-            x_range = np.linspace(min(np.log10(data['Frequency'].min())), max(np.log10(data['Frequency'].max())) + 5, 500)
-            # Adjust range to cover master curve width
-            x_min_all = min([np.min(np.log10(data[data['Temperature']==t]['Frequency']*shift_factors[t])) for t in shift_factors])
-            x_max_all = max([np.max(np.log10(data[data['Temperature']==t]['Frequency']*shift_factors[t])) for t in shift_factors])
-            x_range = np.linspace(x_min_all, x_max_all, 500)
-            
-            y_fit = storage_modulus_model(x_range, params['a'], params['b'], params['c'], params['d'])
-            
-            ax.plot(x_range, y_fit, 'r-', linewidth=3, label="Fitted Model")
+            # Plot Line
+            if all_x_vals:
+                x_min, x_max = min(all_x_vals), max(all_x_vals)
+                # Range with padding
+                x_range = np.linspace(x_min - 0.5, x_max + 0.5, 500)
+                y_fit = storage_modulus_model(x_range, params['a'], params['b'], params['c'], params['d'])
+                ax.plot(x_range, y_fit, 'r-', linewidth=3, label="Fitted Model")
             
             ax.set_xlabel("Log(Frequency)", fontsize=14)
             ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
@@ -368,7 +383,6 @@ def page_curve_fitting():
             ax.legend()
             ax.grid(True)
             add_watermark(ax)
-            
             st.pyplot(fig)
             
             st.write("### Fitted Parameters")
@@ -389,10 +403,10 @@ def page_etime():
     
     if st.button("Calculate E(t)"):
         params = st.session_state.fitted_params
-        # Time range: usually inverse of frequency range
+        # Logspace time
         time = np.logspace(-5, 5, 100)
         
-        with st.spinner("Calculating integral... this may take a moment."):
+        with st.spinner("Calculating integral..."):
             E_t = Etime_time_cycle(time, cycle, params['a'], params['b'], params['c'], params['d'])
         
         fig = Figure(figsize=(10, 6))
