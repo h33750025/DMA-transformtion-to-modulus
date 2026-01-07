@@ -462,7 +462,7 @@ def page_elastic_modulus():
     fig = Figure(figsize=(12, 8))
     ax = fig.add_subplot(111)
     
-    plot_rates = np.logspace(-6, 2, 100)
+    plot_rates = np.logspace(-5, -2, 500)
     plot_log_rates = np.log10(plot_rates)
     
     darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
@@ -512,3 +512,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
