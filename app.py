@@ -2,339 +2,430 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import Axes3D
-from scipy.optimize import curve_fit, minimize
+from scipy.interpolate import griddata
+from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
+from colorsys import rgb_to_hls
 import io
 
-# --- Page Config ---
-st.set_page_config(page_title="NYU ViscoMOD Web", layout="wide")
+# ==========================================
+# Configuration & Global Styles
+# ==========================================
+st.set_page_config(
+    page_title="NYU-ViscoMOD v1.1.4 (Web)",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- Session State Management ---
+# Custom plot styles to match the original
+plt.rcParams['mathtext.fontset'] = 'custom'
+plt.rcParams['mathtext.rm'] = 'Times New Roman'
+plt.rcParams['font.family'] = 'Times New Roman'
+
+# ==========================================
+# Helper Functions
+# ==========================================
+def is_dark_color(hex_color):
+    """Check if a color is dark to adjust text contrast if needed."""
+    rgb = mcolors.hex2color(hex_color)
+    h, l, s = rgb_to_hls(*rgb)
+    return l < 0.5
+
+def add_watermark(ax, text="NYU-ViscoMOD"):
+    """Adds the watermark to a matplotlib axis."""
+    ax.text(
+        0.99, 0.01,
+        text,
+        fontsize=14,
+        fontname="Times New Roman",
+        color="purple",
+        ha="right", va="bottom", alpha=0.5,
+        transform=ax.transAxes
+    )
+
+def storage_modulus_model(log_omega, a, b, c, d):
+    """The hyperbolic tangent model for E'(w)."""
+    return a * np.tanh(b * (log_omega + c)) + d
+
+def Etime_time_cycle(time, cycle, a, b, c, d):
+    """Calculates E(t) based on the fitted parameters."""
+    Etime = np.zeros_like(time)
+    N1, N2, N3 = 240, 74, 24
+    
+    def E_prime(w, a, b, c, d):
+        return a * np.tanh(b * (np.log(w) + c)) + d
+        
+    def integrand(t_val, E_prime_w, w_val):
+        return (2/np.pi) * (E_prime_w / w_val) * np.sin(w_val * t_val)
+        
+    for i, t_val in enumerate(time):
+        if t_val == 0: continue
+        # Integration ranges
+        w1 = np.linspace(1e-6 / t_val, cycle * 0.1 * 2 * np.pi / t_val, int(cycle * 0.1 * N1) + 1)
+        w2 = np.linspace(cycle * 0.1 * 2 * np.pi / t_val, cycle * 0.4 * 2 * np.pi / t_val, int(cycle * 0.3 * N2) + 1)
+        w3 = np.linspace(cycle * 0.4 * 2 * np.pi / t_val, cycle * 2 * np.pi / t_val, int(cycle * 0.6 * N3) + 1)
+        all_w = np.concatenate([w1, w2[1:], w3[1:]])
+        
+        y = integrand(t_val, E_prime(all_w, a, b, c, d), all_w)
+        Etime[i] = np.trapz(y, all_w)
+    return Etime
+
+# ==========================================
+# Session State Initialization
+# ==========================================
 if 'data' not in st.session_state:
     st.session_state.data = None
+if 'analysis_shift_factors' not in st.session_state:
+    st.session_state.analysis_shift_factors = {}
+if 'fitted_params' not in st.session_state:
+    st.session_state.fitted_params = {}
 if 'master_curve_data' not in st.session_state:
     st.session_state.master_curve_data = None
-if 'shift_params' not in st.session_state:
-    st.session_state.shift_params = {"C1": 17.44, "C2": 51.6, "Tref": 25.0}
-if 'prony_results' not in st.session_state:
-    st.session_state.prony_results = None
 
-# --- Helper Functions ---
+# ==========================================
+# Page Logic
+# ==========================================
 
-def wlf_shift(temp, t_ref, c1, c2):
-    """Calculate log10(aT) using WLF equation."""
-    # Prevent division by zero
-    denom = c2 + (temp - t_ref)
-    if abs(denom) < 1e-9: 
-        return 0
-    return (-c1 * (temp - t_ref)) / denom
-
-def arrhenius_shift(temp, t_ref, ea):
-    """Calculate log10(aT) using Arrhenius equation."""
-    R = 8.314  # Gas constant J/(mol K)
-    # Convert to Kelvin
-    T_k = temp + 273.15
-    Tref_k = t_ref + 273.15
-    # Natural log shift
-    ln_at = (ea * 1000 / R) * (1/T_k - 1/Tref_k)
-    # Convert to log10
-    return ln_at / np.log(10)
-
-def prony_model_storage(omega, g_terms, tau_terms, g_e):
-    """Calculate Storage Modulus G'(omega) from Prony Series."""
-    # G'(w) = Ge + Sum [ Gi * (w*tau_i)^2 / (1 + (w*tau_i)^2) ]
-    g_prime = np.full_like(omega, g_e)
-    for g_i, tau_i in zip(g_terms, tau_terms):
-        term = (g_i * (omega * tau_i)**2) / (1 + (omega * tau_i)**2)
-        g_prime += term
-    return g_prime
-
-# --- Sidebar ---
-st.sidebar.title("ViscoMOD Navigation")
-page = st.sidebar.radio("Go to:", [
-    "1. Load Data", 
-    "2. Master Curve (TTS)", 
-    "3. Polynomial Fit", 
-    "4. Prony Series Fit", 
-    "5. 3D Visualization"
-])
-
-# ================= PAGE 1: LOAD DATA =================
-if page == "1. Load Data":
-    st.title("Step 1: Upload Rheology Data")
-    st.info("Ensure CSV has columns: `Frequency`, `Storage Modulus`, `Temperature`")
+def page_load_data():
+    st.title("Step 1: Load Data")
+    st.markdown("Upload your Viscoelastic Data CSV. The file must contain **Frequency**, **Storage Modulus**, and **Temperature** columns.")
     
-    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+    col1, col2 = st.columns(2)
     
-    if uploaded_file:
-        try:
-            df = pd.read_csv(uploaded_file)
-            # Normalize column names for easier access
-            df.columns = [c.strip() for c in df.columns]
-            
-            # Simple column mapping (case insensitive check)
-            col_map = {}
-            for c in df.columns:
-                lower_c = c.lower()
-                if "freq" in lower_c: col_map["Frequency"] = c
-                if "storage" in lower_c or "modulus" in lower_c: col_map["Storage Modulus"] = c
-                if "temp" in lower_c: col_map["Temperature"] = c
-            
-            if len(col_map) >= 3:
-                # Rename columns standardly
-                df = df.rename(columns={
-                    col_map["Frequency"]: "Frequency",
-                    col_map["Storage Modulus"]: "Storage Modulus",
-                    col_map["Temperature"]: "Temperature"
-                })
-                # Drop N/As
-                df = df.dropna()
-                st.session_state.data = df
-                st.success(f"Loaded {len(df)} rows.")
-                st.dataframe(df.head())
-            else:
-                st.error(f"Could not auto-identify columns. Found: {list(df.columns)}")
+    with col1:
+        uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+        
+        if uploaded_file:
+            try:
+                df = pd.read_csv(uploaded_file)
+                # Ensure numeric types
+                df['Frequency'] = pd.to_numeric(df['Frequency'], errors='coerce')
+                df['Storage Modulus'] = pd.to_numeric(df['Storage Modulus'], errors='coerce')
+                df['Temperature'] = pd.to_numeric(df['Temperature'], errors='coerce')
+                df.dropna(subset=['Frequency', 'Storage Modulus', 'Temperature'], inplace=True)
                 
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
+                st.session_state.data = df
+                st.success(f"Loaded {len(df)} rows successfully.")
+                st.dataframe(df.head())
+            except Exception as e:
+                st.error(f"Error loading file: {e}")
 
-# ================= PAGE 2: MASTER CURVE (TTS) =================
-elif page == "2. Master Curve (TTS)":
-    st.title("Step 2: Time-Temperature Superposition")
+    with col2:
+        st.info("**Instructions:**\n1. Prepare a CSV file with columns: `Frequency`, `Storage Modulus`, `Temperature`.\n2. Upload it on the left.\n3. Navigate to 'Raw Data' to visualize.")
+        st.markdown("---")
+        st.markdown("*Software Patent: US Patent #10,345,210*")
+        st.markdown("*Developed at NYU*")
+
+
+def page_raw_data():
+    st.title("Step 2: Raw Data Visualization")
     
     if st.session_state.data is None:
-        st.warning("Please upload data in Step 1.")
-    else:
-        df = st.session_state.data
-        temps = sorted(df["Temperature"].unique())
-        
-        # --- Parameters ---
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            t_ref = st.selectbox("Reference Temperature (°C)", temps, index=len(temps)//2)
-        with col2:
-            model_type = st.selectbox("Shift Model", ["WLF", "Arrhenius"])
-        
-        if model_type == "WLF":
-            with col3:
-                c1 = st.number_input("C1", value=17.44)
-                c2 = st.number_input("C2", value=51.6)
-        else:
-            with col3:
-                ea = st.number_input("Activation Energy (kJ/mol)", value=50.0)
+        st.warning("Please upload data in 'Load Data' first.")
+        return
 
-        # --- Calculation ---
-        # Calculate Shift Factors
-        shifted_data = []
-        shift_factors = [] # Store for plotting
+    data = st.session_state.data
+    
+    fig = Figure(figsize=(10, 6))
+    ax = fig.add_subplot(111)
+
+    temps = sorted(data['Temperature'].unique())
+    all_colors = list(mcolors.CSS4_COLORS.values())
+    # Filter for darker colors for better visibility
+    darker = [c for c in all_colors if is_dark_color(c)]
+    
+    for i, temp in enumerate(temps):
+        subdata = data[data['Temperature'] == temp].sort_values('Frequency')
+        ax.semilogx(subdata['Frequency'], subdata['Storage Modulus'], 
+                    color=darker[i % len(darker)], label=f"{temp} °C", linewidth=1.5, marker='o', markersize=4)
+
+    ax.set_xscale('log')
+    ax.set_xlabel('Frequency (Hz)', fontsize=14)
+    ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
+    ax.set_title('Raw Data Plot', fontsize=16)
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.grid(True, which="both", ls="--", alpha=0.5)
+    add_watermark(ax)
+    
+    st.pyplot(fig)
+
+
+def page_3d_surface():
+    st.title("Step 3: 3D Surface Plot")
+    
+    if st.session_state.data is None:
+        st.warning("Please upload data first.")
+        return
+
+    data = st.session_state.data
+    
+    X = data['Temperature']
+    Y = np.log10(data['Frequency']) # Log scale for frequency in mesh usually looks better or linear freq axis
+    # The original code uses linear Frequency for meshgrid but data is often log. 
+    # Let's stick to original code logic: raw values.
+    Y = data['Frequency']
+    Z = data['Storage Modulus']
+
+    # Interpolation for surface
+    x_grid, y_grid = np.meshgrid(
+        np.linspace(X.max(), X.min(), 100),
+        np.linspace(Y.min(), Y.max(), 100)
+    )
+    
+    try:
+        Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
+    except Exception as e:
+        st.error(f"Error generating surface (data might be too sparse): {e}")
+        return
+
+    fig = Figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
+    
+    ax.set_xlabel('Temperature (°C)', fontsize=12)
+    ax.set_ylabel('Frequency (Hz)', fontsize=12)
+    ax.set_zlabel('Storage Modulus (MPa)', fontsize=12)
+    
+    # Colorbar
+    cbar = fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
+    cbar.set_label('Storage Modulus (MPa)')
+    
+    add_watermark(ax, on_axes=True)
+    st.pyplot(fig)
+
+
+def page_analysis_tts():
+    st.title("Step 4: Time-Temperature Superposition (TTS)")
+    
+    if st.session_state.data is None:
+        st.warning("Please upload data first.")
+        return
+
+    data = st.session_state.data
+    
+    st.markdown("""
+    This step automatically shifts the curves horizontally to form a **Master Curve**.
+    It selects the lowest temperature as the reference and shifts higher temperatures to overlap.
+    """)
+    
+    if st.button("Run Auto-Shift Analysis"):
+        reference_temp = min(data["Temperature"].unique())
+        df_ref = data[data["Temperature"] == reference_temp].sort_values('Frequency')
         
-        for t in temps:
-            sub = df[df["Temperature"] == t].copy()
-            
-            if model_type == "WLF":
-                log_at = wlf_shift(t, t_ref, c1, c2)
-            else:
-                log_at = arrhenius_shift(t, t_ref, ea)
-                
-            at = 10**log_at
-            
-            # Shift Frequency: w_red = w * at
-            sub["Reduced Frequency"] = sub["Frequency"] * at
-            sub["Shift Factor"] = at
-            sub["Log_aT"] = log_at
-            
-            shifted_data.append(sub)
-            shift_factors.append({"Temperature": t, "Log_aT": log_at})
+        extended_data = df_ref.copy()
+        temperatures = sorted(data["Temperature"].unique())
+        temperatures = [t for t in temperatures if t > reference_temp]
         
-        master_df = pd.concat(shifted_data).sort_values(by="Reduced Frequency")
-        st.session_state.master_curve_data = master_df
+        shift_factors = {reference_temp: 1.0}
         
-        # --- Plotting ---
-        tab1, tab2 = st.tabs(["Master Curve", "Shift Factors"])
-        
-        with tab1:
-            fig, ax = plt.subplots(figsize=(8, 6))
-            # Plot by temperature to show colors
-            scatter = ax.scatter(master_df["Reduced Frequency"], master_df["Storage Modulus"], 
-                       c=master_df["Temperature"], cmap="viridis", alpha=0.6, s=15)
+        # Auto-shift logic
+        for temp in temperatures:
+            df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
             
+            # Find overlap point: max freq of current vs existing master curve
+            # Simple heuristic from original code: match modulus at boundaries
+            max_freq = df_temp["Frequency"].max()
+            modulus_at_max = df_temp.iloc[-1]["Storage Modulus"] # Assuming sorted
+            
+            # Find closest modulus in the extended data constructed so far
+            idx = (extended_data["Storage Modulus"] - modulus_at_max).abs().idxmin()
+            closest_match_freq = extended_data.loc[idx, "Frequency"]
+            
+            # Calculate shift factor
+            # Shift factor aT = f_ref / f_temp. 
+            # Original code: shift_factor = closest_match["Frequency"] / max_freq
+            # This aligns the rightmost point of the current temp curve to the matching modulus point on the master curve
+            shift_factor = closest_match_freq / max_freq
+            
+            shift_factors[temp] = shift_factor
+            
+            # Create shifted dataframe segment
+            shifted_df = df_temp.copy()
+            shifted_df["Frequency"] = shifted_df["Frequency"] * shift_factor
+            
+            extended_data = pd.concat([extended_data, shifted_df], ignore_index=True)
+            extended_data = extended_data.sort_values("Frequency")
+        
+        st.session_state.analysis_shift_factors = shift_factors
+        st.session_state.master_curve_data = extended_data
+        st.success("Analysis Complete!")
+
+    # Display results if available
+    if st.session_state.master_curve_data is not None:
+        master_data = st.session_state.master_curve_data
+        shift_factors = st.session_state.analysis_shift_factors
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            fig = Figure(figsize=(10, 6))
+            ax = fig.add_subplot(111)
+            
+            # Plot reference
+            ref_temp = min(shift_factors.keys())
+            
+            # Plot all shifted segments
+            temps = sorted(st.session_state.data['Temperature'].unique())
+            for temp in temps:
+                sf = shift_factors.get(temp, 1.0)
+                sub = st.session_state.data[st.session_state.data['Temperature'] == temp]
+                ax.plot(sub['Frequency'] * sf, sub['Storage Modulus'], 'o', markersize=3, label=f"{temp}°C (aT={sf:.2e})")
+
             ax.set_xscale("log")
-            ax.set_yscale("log")
-            ax.set_xlabel("Reduced Frequency (Hz)")
-            ax.set_ylabel("Storage Modulus (Pa)")
-            ax.set_title(f"Master Curve at T_ref={t_ref}°C")
-            plt.colorbar(scatter, label="Temperature (°C)")
-            ax.grid(True, which="both", ls="-", alpha=0.3)
+            ax.set_xlabel("Reduced Frequency (Hz)", fontsize=14)
+            ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
+            ax.set_title(f"Master Curve (Ref: {ref_temp}°C)", fontsize=16)
+            ax.legend()
+            ax.grid(True, which="both", ls="--")
+            add_watermark(ax)
             st.pyplot(fig)
             
-        with tab2:
-            sf_df = pd.DataFrame(shift_factors)
-            fig2, ax2 = plt.subplots(figsize=(8, 4))
-            ax2.plot(sf_df["Temperature"], sf_df["Log_aT"], 'o-', color='teal')
-            ax2.set_xlabel("Temperature (°C)")
-            ax2.set_ylabel("Log(aT)")
-            ax2.set_title("Shift Factors vs Temperature")
-            ax2.grid(True)
-            st.pyplot(fig2)
+        with col2:
+            st.write("### Shift Factors (aT)")
+            sf_df = pd.DataFrame(list(shift_factors.items()), columns=['Temp (°C)', 'Shift Factor'])
+            st.dataframe(sf_df)
 
-# ================= PAGE 3: POLYNOMIAL FIT =================
-elif page == "3. Polynomial Fit":
-    st.title("Step 3: Polynomial Fit of Master Curve")
+
+def page_curve_fitting():
+    st.title("Step 5: Master Curve Fitting")
     
-    if st.session_state.master_curve_data is None:
-        st.warning("Please generate the Master Curve in Step 2 first.")
-    else:
-        m_df = st.session_state.master_curve_data
+    if not st.session_state.analysis_shift_factors:
+        st.warning("Please run the TTS Analysis first.")
+        return
+
+    st.markdown("Fit the Master Curve to the hyperbolic tangent model:  \n$E'(\\omega) = a \\tanh(b(\\log(\\omega) + c)) + d$")
+
+    col_ctrl, col_plot = st.columns([1, 3])
+    
+    with col_ctrl:
+        st.subheader("Bounds")
+        a_upper = st.slider("Upper Bound for 'a'", 10.0, 2000.0, 500.0, 10.0)
+        d_upper = st.slider("Upper Bound for 'd'", 10.0, 2000.0, 500.0, 10.0)
         
-        degree = st.slider("Polynomial Degree", 1, 9, 5)
+        if st.button("Fit Curve"):
+            # Prepare data
+            data = st.session_state.data
+            shift_factors = st.session_state.analysis_shift_factors
+            
+            combined_log_freq = []
+            combined_modulus = []
+            
+            for t, sf in shift_factors.items():
+                sub = data[data['Temperature'] == t]
+                combined_log_freq.extend(np.log10(sub['Frequency'] * sf))
+                combined_modulus.extend(sub['Storage Modulus'])
+            
+            X_fit = np.array(combined_log_freq)
+            Y_fit = np.array(combined_modulus)
+            
+            # Bounds: [a, b, c, d]
+            lower_bounds = [1e-6, -100.0, -100.0, 1e-6]
+            upper_bounds = [a_upper, 100.0, 100.0, d_upper]
+            
+            try:
+                popt, _ = curve_fit(storage_modulus_model, X_fit, Y_fit, bounds=(lower_bounds, upper_bounds), maxfev=100000)
+                st.session_state.fitted_params = {
+                    'a': popt[0], 'b': popt[1], 'c': popt[2], 'd': popt[3],
+                    'r2': r2_score(Y_fit, storage_modulus_model(X_fit, *popt))
+                }
+                st.success("Fitting successful!")
+            except Exception as e:
+                st.error(f"Fitting failed: {e}")
+
+    with col_plot:
+        if st.session_state.fitted_params:
+            params = st.session_state.fitted_params
+            
+            fig = Figure(figsize=(10, 6))
+            ax = fig.add_subplot(111)
+            
+            # Plot scatter data
+            data = st.session_state.data
+            shift_factors = st.session_state.analysis_shift_factors
+            for t in sorted(data['Temperature'].unique()):
+                sf = shift_factors.get(t, 1.0)
+                sub = data[data['Temperature'] == t]
+                ax.scatter(np.log10(sub['Frequency'] * sf), sub['Storage Modulus'], s=10, alpha=0.5, label=f"{t}C data")
+
+            # Plot Fit
+            x_range = np.linspace(min(np.log10(data['Frequency'].min())), max(np.log10(data['Frequency'].max())) + 5, 500)
+            # Adjust range to cover master curve width
+            x_min_all = min([np.min(np.log10(data[data['Temperature']==t]['Frequency']*shift_factors[t])) for t in shift_factors])
+            x_max_all = max([np.max(np.log10(data[data['Temperature']==t]['Frequency']*shift_factors[t])) for t in shift_factors])
+            x_range = np.linspace(x_min_all, x_max_all, 500)
+            
+            y_fit = storage_modulus_model(x_range, params['a'], params['b'], params['c'], params['d'])
+            
+            ax.plot(x_range, y_fit, 'r-', linewidth=3, label="Fitted Model")
+            
+            ax.set_xlabel("Log(Frequency)", fontsize=14)
+            ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
+            ax.set_title(f"Curve Fit (R² = {params['r2']:.4f})", fontsize=16)
+            ax.legend()
+            ax.grid(True)
+            add_watermark(ax)
+            
+            st.pyplot(fig)
+            
+            st.write("### Fitted Parameters")
+            st.json(params)
+        else:
+            st.info("Click 'Fit Curve' to generate the model.")
+
+def page_etime():
+    st.title("Step 6: Time Domain E(t)")
+    
+    if not st.session_state.fitted_params:
+        st.warning("Please fit the curve in Step 5 first.")
+        return
+
+    st.markdown("Calculate **E(t)** using the fitted parameters from the Master Curve.")
+    
+    cycle = st.number_input("Cycle Parameter", value=10.0)
+    
+    if st.button("Calculate E(t)"):
+        params = st.session_state.fitted_params
+        # Time range: usually inverse of frequency range
+        time = np.logspace(-5, 5, 100)
         
-        # Fit Log-Log
-        x_log = np.log10(m_df["Reduced Frequency"])
-        y_log = np.log10(m_df["Storage Modulus"])
+        with st.spinner("Calculating integral... this may take a moment."):
+            E_t = Etime_time_cycle(time, cycle, params['a'], params['b'], params['c'], params['d'])
         
-        # Polyfit
-        coeffs = np.polyfit(x_log, y_log, degree)
-        poly_func = np.poly1d(coeffs)
+        fig = Figure(figsize=(10, 6))
+        ax = fig.add_subplot(111)
+        ax.loglog(time, E_t, 'b-', linewidth=2)
+        ax.set_xlabel("Time (s)", fontsize=14)
+        ax.set_ylabel("Relaxation Modulus E(t) (MPa)", fontsize=14)
+        ax.set_title("Relaxation Modulus vs Time", fontsize=16)
+        ax.grid(True, which="both", ls="--")
+        add_watermark(ax)
         
-        y_pred_log = poly_func(x_log)
-        r2 = r2_score(y_log, y_pred_log)
-        
-        st.metric("R² Score", f"{r2:.5f}")
-        
-        # Plot
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.scatter(m_df["Reduced Frequency"], m_df["Storage Modulus"], 
-                   color='lightgray', label='Master Curve Data', s=10)
-        
-        # Sort for clean line
-        sort_idx = np.argsort(x_log)
-        x_sorted = 10**x_log.iloc[sort_idx]
-        y_sorted = 10**y_pred_log.iloc[sort_idx]
-        
-        ax.plot(x_sorted, y_sorted, 'r-', linewidth=2, label=f'Poly Fit (Deg {degree})')
-        
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlabel("Reduced Frequency (Hz)")
-        ax.set_ylabel("Storage Modulus (Pa)")
-        ax.legend()
         st.pyplot(fig)
-        
-        st.write(" **Polynomial Coefficients (Highest power first):**")
-        st.write(coeffs)
 
-# ================= PAGE 4: PRONY SERIES =================
-elif page == "4. Prony Series Fit":
-    st.title("Step 4: Generalized Maxwell (Prony) Fit")
-    
-    if st.session_state.master_curve_data is None:
-        st.warning("Please generate the Master Curve in Step 2 first.")
-    else:
-        m_df = st.session_state.master_curve_data
-        
-        # Filter negative or zero values for log scale
-        m_df = m_df[(m_df["Reduced Frequency"] > 0) & (m_df["Storage Modulus"] > 0)]
-        
-        n_elements = st.number_input("Number of Maxwell Elements", 1, 20, 5)
-        
-        if st.button("Run Optimization (Minimize Error)"):
-            with st.spinner("Optimizing Prony parameters... this may take a moment."):
-                
-                omega = m_df["Reduced Frequency"].values
-                G_exp = m_df["Storage Modulus"].values
-                
-                # Initial Guess
-                # Spread taus logarithmically across frequency range
-                min_w, max_w = np.min(omega), np.max(omega)
-                taus_init = np.logspace(np.log10(1/max_w), np.log10(1/min_w), n_elements)
-                # Guess G_i roughly as mean G / N
-                g_init = np.full(n_elements, np.mean(G_exp)/n_elements)
-                ge_init = 0.0
-                
-                initial_guess = np.concatenate([g_init, taus_init, [ge_init]])
-                
-                # Objective Function
-                def objective(params):
-                    gs = params[:n_elements]
-                    ts = params[n_elements:2*n_elements]
-                    ge = params[-1]
-                    
-                    # Log-Log MSE is usually better for Rheology
-                    g_model = prony_model_storage(omega, gs, ts, ge)
-                    
-                    # Avoid log(0)
-                    g_model = np.maximum(g_model, 1e-9)
-                    
-                    return np.sum((np.log10(G_exp) - np.log10(g_model))**2)
-                
-                # Constraints: all params > 0
-                bounds = [(0, np.inf)] * len(initial_guess)
-                
-                res = minimize(objective, initial_guess, bounds=bounds, method='L-BFGS-B')
-                
-                if res.success:
-                    st.success(f"Optimization Successful! Error: {res.fun:.4f}")
-                    
-                    g_opt = res.x[:n_elements]
-                    tau_opt = res.x[n_elements:2*n_elements]
-                    ge_opt = res.x[-1]
-                    
-                    # Generate smooth line for plotting
-                    w_smooth = np.logspace(np.log10(min_w), np.log10(max_w), 100)
-                    g_smooth = prony_model_storage(w_smooth, g_opt, tau_opt, ge_opt)
-                    
-                    # Save results
-                    st.session_state.prony_results = {
-                        "G_i": g_opt, "Tau_i": tau_opt, "Ge": ge_opt
-                    }
-                    
-                    # Plot
-                    fig, ax = plt.subplots(figsize=(8, 6))
-                    ax.scatter(omega, G_exp, color='lightgray', label='Exp Data', s=15)
-                    ax.plot(w_smooth, g_smooth, 'b-', label='Prony Fit')
-                    ax.set_xscale("log")
-                    ax.set_yscale("log")
-                    ax.set_xlabel("Reduced Frequency (Hz)")
-                    ax.set_ylabel("Storage Modulus (Pa)")
-                    ax.legend()
-                    st.pyplot(fig)
-                    
-                    # Table
-                    res_df = pd.DataFrame({
-                        "Element": range(1, n_elements+1),
-                        "G_i (Pa)": g_opt,
-                        "Tau_i (s)": tau_opt
-                    })
-                    st.write(f"**Ge (Equilibrium Modulus):** {ge_opt:.4e} Pa")
-                    st.dataframe(res_df)
-                    
-                else:
-                    st.error(f"Optimization failed: {res.message}")
 
-# ================= PAGE 5: 3D Visualization =================
-elif page == "5. 3D Visualization":
-    st.title("Step 5: 3D Surface View")
+# ==========================================
+# Main App Structure
+# ==========================================
+def main():
+    st.sidebar.title("NYU-ViscoMOD")
     
-    if st.session_state.data is None:
-        st.warning("Please upload data in Step 1.")
-    else:
-        df = st.session_state.data
-        
-        fig = plt.figure(figsize=(10, 8))
-        ax = fig.add_subplot(111, projection='3d')
-        
-        # Plot Trisurf
-        surf = ax.plot_trisurf(df["Frequency"], df["Temperature"], df["Storage Modulus"], 
-                        cmap="viridis", edgecolor="none", alpha=0.9)
-        
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Temperature (°C)")
-        ax.set_zlabel("Storage Modulus (Pa)")
-        ax.set_title("3D View of Raw Data")
-        
-        # Rotate view (180 deg from standard -60 => 120)
-        ax.view_init(elev=30, azim=120)
-        
-        fig.colorbar(surf, shrink=0.5, aspect=10)
-        st.pyplot(fig)
+    pages = {
+        "1. Load CSV": page_load_data,
+        "2. Raw Data": page_raw_data,
+        "3. 3D Surface": page_3d_surface,
+        "4. TTS Analysis": page_analysis_tts,
+        "5. Curve Fitting": page_curve_fitting,
+        "6. E(t) Prediction": page_etime
+    }
+    
+    selection = st.sidebar.radio("Navigation", list(pages.keys()))
+    
+    # Run the selected page function
+    pages[selection]()
+
+if __name__ == "__main__":
+    main()
