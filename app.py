@@ -27,6 +27,13 @@ plt.rcParams['font.family'] = 'Times New Roman'
 # ==========================================
 # Helper Functions
 # ==========================================
+
+# Compatibility for NumPy 2.0+ where trapz is renamed to trapezoid
+try:
+    trapz = np.trapezoid
+except AttributeError:
+    trapz = np.trapz
+
 def is_dark_color(hex_color):
     """Check if a color is dark to adjust text contrast if needed."""
     rgb = mcolors.hex2color(hex_color)
@@ -72,7 +79,10 @@ def Etime_time_cycle(time, cycle, a, b, c, d):
         all_w = np.concatenate([w1, w2[1:], w3[1:]])
         
         y = integrand(t_val, E_prime(all_w, a, b, c, d), all_w)
-        Etime[i] = np.trapz(y, all_w)
+        
+        # FIX: Use the compatible trapz function defined above
+        Etime[i] = trapz(y, all_w)
+        
     return Etime
 
 # ==========================================
@@ -103,8 +113,6 @@ def page_load_data():
         if uploaded_file:
             try:
                 df = pd.read_csv(uploaded_file)
-                # Standardize column names (optional, but good practice)
-                # Here we assume the user uploads files with these exact headers as per the original tool
                 
                 # Ensure numeric types
                 cols_to_check = ['Frequency', 'Storage Modulus', 'Temperature']
