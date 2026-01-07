@@ -35,12 +35,17 @@ def is_dark_color(hex_color):
     return l < 0.5
 
 def add_watermark(ax, text="NYU-ViscoMOD"):
-    """Adds the watermark to a matplotlib axis."""
-    ax.text(
-        0.99, 0.01, text,
+    """Adds the watermark to a matplotlib axis, handling both 2D and 3D plots."""
+    props = dict(
         fontsize=14, fontname="Times New Roman", color="purple",
         ha="right", va="bottom", alpha=0.5, transform=ax.transAxes
     )
+    
+    # Check if the axis is a 3D axis (has the text2D method)
+    if hasattr(ax, 'text2D'):
+        ax.text2D(0.99, 0.01, text, **props)
+    else:
+        ax.text(0.99, 0.01, text, **props)
 
 def storage_modulus_model(log_omega, a, b, c, d):
     """The hyperbolic tangent model for E'(w)."""
@@ -108,16 +113,23 @@ def page_3d_surface():
     
     data = st.session_state.data
     X, Y, Z = data['Temperature'], data['Frequency'], data['Storage Modulus']
+    
+    # Create grid
     x_grid, y_grid = np.meshgrid(np.linspace(X.max(), X.min(), 100), np.linspace(Y.min(), Y.max(), 100))
     
     try:
         Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
         fig = Figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')
+        
         surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
         
-        ax.set_xlabel('Temperature (°C)'); ax.set_ylabel('Frequency (Hz)'); ax.set_zlabel('Modulus (MPa)')
+        ax.set_xlabel('Temperature (°C)')
+        ax.set_ylabel('Frequency (Hz)')
+        ax.set_zlabel('Modulus (MPa)')
+        
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
+        
         add_watermark(ax)
         st.pyplot(fig)
     except Exception as e:
@@ -238,7 +250,6 @@ def page_params_per_temp():
     results = []
     for t in sorted(shifts.keys()):
         log_aT = np.log10(shifts[t])
-        # The shift affects the 'c' parameter: c_new = c_master + log(aT)
         c_temp = master['c'] + log_aT
         results.append({
             "Temperature": t,
@@ -253,7 +264,6 @@ def page_params_per_temp():
     st.session_state.param_per_temp = df_res
     st.dataframe(df_res)
     
-    # Download
     csv = df_res.to_csv(index=False)
     st.download_button("Download Parameters CSV", csv, "parameters_per_temp.csv", "text/csv")
 
@@ -270,18 +280,13 @@ def page_elastic_modulus():
             rates = [float(x.strip()) for x in strain_rates.split(',')]
             rates = np.array(sorted(rates))
             
-            # Using the Master Curve model parameters
-            # Input to model is log10(frequency), assuming Frequency ~ Strain Rate
-            
             params = st.session_state.fitted_params
             log_rates = np.log10(rates)
             E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
             
-            # Display Result Table
             res_df = pd.DataFrame({"Strain Rate (1/s)": rates, "Predicted Elastic Modulus (MPa)": E_values})
             st.dataframe(res_df)
             
-            # Plot
             fig = Figure(figsize=(10, 6))
             ax = fig.add_subplot(111)
             ax.semilogx(rates, E_values, 'bs-', lw=2)
