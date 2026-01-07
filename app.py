@@ -95,16 +95,17 @@ if 'master_curve_data' not in st.session_state: st.session_state.master_curve_da
 if 'param_per_temp' not in st.session_state: st.session_state.param_per_temp = None
 
 # Initialize Global Bounds if they don't exist
-if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 100.0
-if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 100.0
+if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 2000.0
+if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 2000.0
 
 # ==========================================
 # Pages
 # ==========================================
 
-def page_load_data():
-    st.title("Step 1: Load Data")
+def page_load_and_visualize():
+    st.title("Step 1: Load & Visualize Data")
     uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
+    
     if uploaded_file:
         try:
             df = pd.read_csv(uploaded_file)
@@ -115,61 +116,102 @@ def page_load_data():
                 df.dropna(subset=cols, inplace=True)
                 st.session_state.data = df
                 st.success(f"Loaded {len(df)} rows.")
-                st.dataframe(df.head())
+                
+                # Show Data Preview
+                with st.expander("Show Data Preview"):
+                    st.dataframe(df.head())
+
+                # ==========================================
+                # PLOTTING SECTION (Merged from Raw & 3D)
+                # ==========================================
+                st.markdown("---")
+                st.subheader("Data Visualization")
+                
+                tab1, tab2 = st.tabs(["2D Raw Data Plot", "3D Surface Plot"])
+                
+                # --- 2D Plot Logic ---
+                with tab1:
+                    data = st.session_state.data
+                    fig = Figure(figsize=(10, 6))
+                    ax = fig.add_subplot(111)
+                    
+                    temps = sorted(data['Temperature'].unique())
+                    darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
+                    
+                    for i, temp in enumerate(temps):
+                        sub = data[data['Temperature'] == temp].sort_values('Frequency')
+                        ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
+                                   color=darker[i%len(darker)], label=f"{temp} °C", marker='o')
+                    
+                    ax.set_xlabel('Frequency (Hz)')
+                    ax.set_ylabel("Storage Modulus (MPa)")
+                    ax.set_title("Raw Data Plot")
+                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                    add_watermark(ax)
+                    st.pyplot(fig)
+
+                # --- 3D Plot Logic ---
+                with tab2:
+                    data = st.session_state.data
+                    X, Y, Z = data['Temperature'], data['Frequency'], data['Storage Modulus']
+                    
+                    x_grid, y_grid = np.meshgrid(np.linspace(X.max(), X.min(), 100), np.linspace(Y.min(), Y.max(), 100))
+                    
+                    try:
+                        Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
+                        fig = Figure(figsize=(10, 7))
+                        ax = fig.add_subplot(111, projection='3d')
+                        surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
+                        
+                        ax.set_xlabel('Temperature (°C)')
+                        ax.set_ylabel('Frequency (Hz)')
+                        ax.set_zlabel('Modulus (MPa)')
+                        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
+                        add_watermark(ax)
+                        st.pyplot(fig)
+                    except Exception as e:
+                        st.error(f"3D Plot Error: {e}")
+
             else:
                 st.error(f"CSV must contain columns: {cols}")
         except Exception as e:
             st.error(f"Error: {e}")
-
-def page_raw_data():
-    st.title("Step 2: Raw Data")
-    if st.session_state.data is None: return st.warning("No data loaded.")
-    
-    data = st.session_state.data
-    fig = Figure(figsize=(10, 6))
-    ax = fig.add_subplot(111)
-    
-    temps = sorted(data['Temperature'].unique())
-    darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
-    
-    for i, temp in enumerate(temps):
-        sub = data[data['Temperature'] == temp].sort_values('Frequency')
-        ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
-                   color=darker[i%len(darker)], label=f"{temp} °C", marker='o')
-    
-    ax.set_xlabel('Frequency (Hz)')
-    ax.set_ylabel("Storage Modulus (MPa)")
-    ax.set_title("Raw Data Plot")
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    add_watermark(ax)
-    st.pyplot(fig)
-
-def page_3d_surface():
-    st.title("Step 3: 3D Surface")
-    if st.session_state.data is None: return st.warning("No data loaded.")
-    
-    data = st.session_state.data
-    X, Y, Z = data['Temperature'], data['Frequency'], data['Storage Modulus']
-    
-    x_grid, y_grid = np.meshgrid(np.linspace(X.max(), X.min(), 100), np.linspace(Y.min(), Y.max(), 100))
-    
-    try:
-        Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
-        fig = Figure(figsize=(10, 7))
-        ax = fig.add_subplot(111, projection='3d')
-        surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
+    elif st.session_state.data is not None:
+        # If data is already loaded but file uploader is empty (e.g. navigation back)
+        st.info("Data already loaded. Upload a new file to replace it.")
         
-        ax.set_xlabel('Temperature (°C)')
-        ax.set_ylabel('Frequency (Hz)')
-        ax.set_zlabel('Modulus (MPa)')
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
-        add_watermark(ax)
-        st.pyplot(fig)
-    except Exception as e:
-        st.error(f"3D Plot Error: {e}")
+        tab1, tab2 = st.tabs(["2D Raw Data Plot", "3D Surface Plot"])
+        with tab1:
+            data = st.session_state.data
+            fig = Figure(figsize=(10, 6))
+            ax = fig.add_subplot(111)
+            temps = sorted(data['Temperature'].unique())
+            darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
+            for i, temp in enumerate(temps):
+                sub = data[data['Temperature'] == temp].sort_values('Frequency')
+                ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
+                           color=darker[i%len(darker)], label=f"{temp} °C", marker='o')
+            ax.set_xlabel('Frequency (Hz)'); ax.set_ylabel("Storage Modulus (MPa)"); ax.set_title("Raw Data Plot")
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); add_watermark(ax)
+            st.pyplot(fig)
+        with tab2:
+            data = st.session_state.data
+            X, Y, Z = data['Temperature'], data['Frequency'], data['Storage Modulus']
+            x_grid, y_grid = np.meshgrid(np.linspace(X.max(), X.min(), 100), np.linspace(Y.min(), Y.max(), 100))
+            try:
+                Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
+                fig = Figure(figsize=(10, 7))
+                ax = fig.add_subplot(111, projection='3d')
+                surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
+                ax.set_xlabel('Temperature (°C)'); ax.set_ylabel('Frequency (Hz)'); ax.set_zlabel('Modulus (MPa)')
+                fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
+                add_watermark(ax)
+                st.pyplot(fig)
+            except: pass
+
 
 def page_tts():
-    st.title("Step 4: TTS Analysis")
+    st.title("Step 2: TTS Analysis")
     if st.session_state.data is None: return st.warning("No data loaded.")
     
     if st.button("Run Auto-Shift"):
@@ -226,8 +268,8 @@ def page_tts():
             st.dataframe(df_sf, height=500)
 
 def page_fitting():
-    st.title("Step 5: Curve Fitting")
-    if not st.session_state.analysis_shift_factors: return st.warning("Run Step 4 first.")
+    st.title("Step 3: Curve Fitting")
+    if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     
     # Real-time fitting sliders using Global Defaults
     a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
@@ -286,8 +328,8 @@ def page_fitting():
         st.pyplot(fig)
 
 def page_params_per_temp():
-    st.title("Step 6: Master Curve Parameters")
-    if not st.session_state.analysis_shift_factors: return st.warning("Run Step 4 first.")
+    st.title("Step 4: Master Curve Parameters")
+    if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     
     st.markdown("Calculates the model parameters for each temperature acting as the reference temperature.")
     
@@ -298,7 +340,7 @@ def page_params_per_temp():
         a_high = st.slider("Upper Bound for 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s6_a")
         d_high = st.slider("Upper Bound for 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s6_d")
         
-        # Update Global State (Sync with Step 5)
+        # Update Global State (Sync with Step 3)
         st.session_state.global_a_upper = a_high
         st.session_state.global_d_upper = d_high
 
@@ -390,9 +432,9 @@ def page_params_per_temp():
 
 
 def page_elastic_modulus():
-    st.title("Step 7: Elastic Modulus vs Strain Rate")
+    st.title("Step 5: Elastic Modulus vs Strain Rate")
     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
-        return st.warning("Run Step 5 or 6 first.")
+        return st.warning("Run Step 3 or 4 first.")
     
     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     
@@ -458,13 +500,11 @@ def main():
     st.sidebar.title("NYU-ViscoMOD Web")
     
     pages = {
-        "1. Load Data": page_load_data,
-        "2. Raw Data": page_raw_data,
-        "3. 3D Surface": page_3d_surface,
-        "4. TTS Analysis": page_tts,
-        "5. Curve Fitting": page_fitting,
-        "6. Params per Temp": page_params_per_temp,
-        "7. Elastic Modulus": page_elastic_modulus
+        "1. Load & Visualize": page_load_and_visualize,
+        "2. TTS Analysis": page_tts,
+        "3. Curve Fitting": page_fitting,
+        "4. Params per Temp": page_params_per_temp,
+        "5. Elastic Modulus": page_elastic_modulus
     }
     
     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
@@ -472,4 +512,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
