@@ -44,14 +44,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# Matplotlib: Force Times New Roman for ALL Graphs
+# Matplotlib: ROBUST Times New Roman Configuration
 # ---------------------------------------------------------
+# 'stix' is a built-in matplotlib font that looks exactly like Times New Roman.
+# It is much more reliable than 'custom' when the OS lacks specific font files.
 plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.serif'] = ['Times New Roman']
-plt.rcParams['mathtext.fontset'] = 'custom'
-plt.rcParams['mathtext.rm'] = 'Times New Roman'
-plt.rcParams['mathtext.it'] = 'Times New Roman:italic'
-plt.rcParams['mathtext.bf'] = 'Times New Roman:bold'
+plt.rcParams['font.serif'] = ['Times New Roman', 'Times', 'Liberation Serif', 'serif']
+plt.rcParams['mathtext.fontset'] = 'stix' 
 plt.rcParams['axes.titlesize'] = 16
 plt.rcParams['axes.labelsize'] = 14
 plt.rcParams['xtick.labelsize'] = 12
@@ -117,9 +116,8 @@ def page_load_and_visualize():
                 st.session_state.data = df
                 st.success(f"Loaded {len(df)} rows.")
                 
-
                 # ==========================================
-                # PLOTTING SECTION (Merged from Raw & 3D)
+                # PLOTTING SECTION
                 # ==========================================
                 st.markdown("---")
                 st.subheader("Data Visualization")
@@ -509,7 +507,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
