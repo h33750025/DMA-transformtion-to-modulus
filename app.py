@@ -384,7 +384,7 @@ def page_elastic_modulus():
     st.dataframe(res_df)
     
     # Plot ALL Temperatures
-    fig = Figure(figsize=(10, 6))
+    fig = Figure(figsize=(12, 8))
     ax = fig.add_subplot(111)
     
     plot_rates = np.logspace(-6, 2, 100)
@@ -439,3 +439,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
