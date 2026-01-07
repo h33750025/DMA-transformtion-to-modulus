@@ -53,13 +53,17 @@ def storage_modulus_model(log_omega, a, b, c, d):
     return a * np.tanh(b * (log_omega + c)) + d
 
 # ==========================================
-# Session State
+# Session State Initialization
 # ==========================================
 if 'data' not in st.session_state: st.session_state.data = None
 if 'analysis_shift_factors' not in st.session_state: st.session_state.analysis_shift_factors = {}
 if 'fitted_params' not in st.session_state: st.session_state.fitted_params = {}
 if 'master_curve_data' not in st.session_state: st.session_state.master_curve_data = None
 if 'param_per_temp' not in st.session_state: st.session_state.param_per_temp = None
+
+# Initialize Global Bounds if they don't exist
+if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 2000.0
+if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 2000.0
 
 # ==========================================
 # Pages
@@ -192,9 +196,13 @@ def page_fitting():
     st.title("Step 5: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 4 first.")
     
-    # Real-time fitting sliders
-    a_high = st.slider("Max 'a'", 10.0, 5000.0, 2000.0)
-    d_high = st.slider("Max 'd'", 10.0, 5000.0, 2000.0)
+    # Real-time fitting sliders using Global Defaults
+    a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
+    d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+    
+    # Update Global State
+    st.session_state.global_a_upper = a_high
+    st.session_state.global_d_upper = d_high
     
     data, shifts = st.session_state.data, st.session_state.analysis_shift_factors
     x_all, y_all = [], []
@@ -250,12 +258,16 @@ def page_params_per_temp():
     
     st.markdown("Calculates the model parameters for each temperature acting as the reference temperature.")
     
-    # Sliders for bounds (local to this step)
     col_ctrl, col_graph = st.columns([1, 3])
     with col_ctrl:
         st.subheader("Fit Bounds")
-        a_high = st.slider("Upper Bound for 'a'", 10.0, 5000.0, 2000.0)
-        d_high = st.slider("Upper Bound for 'd'", 10.0, 5000.0, 2000.0)
+        # Initialize with Global State
+        a_high = st.slider("Upper Bound for 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s6_a")
+        d_high = st.slider("Upper Bound for 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s6_d")
+        
+        # Update Global State (Sync with Step 5)
+        st.session_state.global_a_upper = a_high
+        st.session_state.global_d_upper = d_high
 
     # Prepare logic
     data = st.session_state.data
@@ -279,12 +291,10 @@ def page_params_per_temp():
         combined_storage_modulus = []
         
         # 2. Gather shifted data for this configuration
-        # The snippet plots ONE color per Ref Temp configuration
         for t in temps:
             if t in current_shift_factors:
                 sub = data[data['Temperature'] == t]
                 shifted_freq = sub['Frequency'] * current_shift_factors[t]
-                # Filter valid
                 valid = shifted_freq > 0
                 
                 log_freq = np.log10(shifted_freq[valid])
@@ -294,7 +304,6 @@ def page_params_per_temp():
                 combined_storage_modulus.extend(modulus)
                 
         # 3. Plot Data Points for this Ref Temp
-        # We plot all combined points as one scatter set with the Ref Temp color
         ax.scatter(combined_log_freq, combined_storage_modulus, color=colors[i], s=10, alpha=0.5, label=f"{ref_temp} °C")
         
         # 4. Fit Curve
@@ -305,7 +314,6 @@ def page_params_per_temp():
             popt, _ = curve_fit(storage_modulus_model, combined_log_freq, combined_storage_modulus, 
                               bounds=([1e-6, -100, -100, 1e-6], [a_high, 100, 100, d_high]), maxfev=100000)
             
-            # Save results
             results.append({
                 "Temperature": ref_temp,
                 "a": popt[0], "b": popt[1], "c": popt[2], "d": popt[3],
@@ -320,16 +328,14 @@ def page_params_per_temp():
         except Exception as e:
             pass
 
-    # Graph Styling
     ax.set_xlabel('Reduced Frequency (Hz)', fontsize=14)
     ax.set_ylabel('Storage Modulus (MPa)', fontsize=14)
     ax.set_title('Master Curve for All Reference Temperatures', fontsize=16)
     
-    # Legend: Ref Temps + Fit Line
     handles, labels = ax.get_legend_handles_labels()
     dummy_line = Line2D([], [], color='black', linestyle='--', linewidth=1, label='Fit Line')
     
-    # Streamlit sometimes duplicates labels in loops, dictionary filter fixes that
+    # Filter duplicates in legend
     by_label = dict(zip(labels, handles))
     final_handles = [dummy_line] + list(by_label.values())
     final_labels = ['Fit Line'] + list(by_label.keys())
@@ -340,7 +346,6 @@ def page_params_per_temp():
     with col_graph:
         st.pyplot(fig)
         
-    # Data Table
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
     
@@ -367,12 +372,9 @@ def page_elastic_modulus():
         rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01, 0.1])
 
     # Table calculation (Reference Temp - Default to first or specific)
-    # If we have detailed params per temp, we can pick the lowest temp as 'Reference' for the table example
-    # or just use the fitted_params from Step 5 if available.
     if st.session_state.fitted_params:
         params = st.session_state.fitted_params
     elif st.session_state.param_per_temp is not None:
-         # Fallback: use first row
          params = st.session_state.param_per_temp.iloc[0].to_dict()
     
     log_rates = np.log10(rates_table)
