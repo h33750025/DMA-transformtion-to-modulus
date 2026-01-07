@@ -252,7 +252,7 @@ def page_tts():
             ax.set_xlabel("Reduced Frequency (Hz)")
             ax.set_ylabel("Storage Modulus (MPa)")
             ax.set_title("Master Curve")
-            ax.legend()
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
             add_watermark(ax)
             st.pyplot(fig)
             
@@ -318,7 +318,7 @@ def page_fitting():
         ax.set_xlabel("Log(Frequency)")
         ax.set_ylabel("Modulus (MPa)")
         ax.set_title(f"R² = {params['r2']:.4f}")
-        ax.legend()
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         add_watermark(ax)
         st.pyplot(fig)
 
@@ -507,3 +507,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
