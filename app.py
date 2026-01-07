@@ -95,8 +95,8 @@ if 'master_curve_data' not in st.session_state: st.session_state.master_curve_da
 if 'param_per_temp' not in st.session_state: st.session_state.param_per_temp = None
 
 # Initialize Global Bounds if they don't exist
-if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 2000.0
-if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 2000.0
+if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 100.0
+if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 100.0
 
 # ==========================================
 # Pages
@@ -472,3 +472,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
