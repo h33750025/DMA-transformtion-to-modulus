@@ -9,6 +9,7 @@ from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 from sklearn.metrics import r2_score
 from colorsys import rgb_to_hls
+from matplotlib.lines import Line2D
 
 # ==========================================
 # Configuration & Global Styles
@@ -245,71 +246,115 @@ def page_fitting():
 
 def page_params_per_temp():
     st.title("Step 6: Master Curve Parameters")
-    if not st.session_state.fitted_params: return st.warning("Run Step 5 first.")
+    if not st.session_state.analysis_shift_factors: return st.warning("Run Step 4 first.")
     
-    st.markdown("Calculates the model parameters for each temperature based on the shift factors.")
+    st.markdown("Calculates the model parameters for each temperature acting as the reference temperature.")
     
-    shifts = st.session_state.analysis_shift_factors
-    master = st.session_state.fitted_params
+    # Sliders for bounds (local to this step)
+    col_ctrl, col_graph = st.columns([1, 3])
+    with col_ctrl:
+        st.subheader("Fit Bounds")
+        a_high = st.slider("Upper Bound for 'a'", 10.0, 5000.0, 2000.0)
+        d_high = st.slider("Upper Bound for 'd'", 10.0, 5000.0, 2000.0)
+
+    # Prepare logic
+    data = st.session_state.data
+    original_shifts = st.session_state.analysis_shift_factors
+    temps = sorted(original_shifts.keys())
+    colors = plt.cm.rainbow(np.linspace(0, 1, len(temps)))
     
     results = []
-    for t in sorted(shifts.keys()):
-        log_aT = np.log10(shifts[t])
-        c_temp = master['c'] + log_aT
-        results.append({
-            "Temperature": t,
-            "Shift Factor": shifts[t],
-            "a": master['a'],
-            "b": master['b'],
-            "c": c_temp,
-            "d": master['d']
-        })
     
+    fig = Figure(figsize=(12, 8))
+    ax = fig.add_subplot(111)
+    
+    # Loop through each temp as the REFERENCE temp
+    for i, ref_temp in enumerate(temps):
+        # 1. Calculate shift factors for this new reference
+        # Shift(new_ref -> T) = Shift(old_ref -> T) / Shift(old_ref -> new_ref)
+        scale_factor = 1.0 / original_shifts[ref_temp]
+        current_shift_factors = {t: s * scale_factor for t, s in original_shifts.items()}
+        
+        combined_log_freq = []
+        combined_storage_modulus = []
+        
+        # 2. Gather shifted data for this configuration
+        # The snippet plots ONE color per Ref Temp configuration
+        for t in temps:
+            if t in current_shift_factors:
+                sub = data[data['Temperature'] == t]
+                shifted_freq = sub['Frequency'] * current_shift_factors[t]
+                # Filter valid
+                valid = shifted_freq > 0
+                
+                log_freq = np.log10(shifted_freq[valid])
+                modulus = sub.loc[valid, 'Storage Modulus']
+                
+                combined_log_freq.extend(log_freq)
+                combined_storage_modulus.extend(modulus)
+                
+        # 3. Plot Data Points for this Ref Temp
+        # We plot all combined points as one scatter set with the Ref Temp color
+        ax.scatter(combined_log_freq, combined_storage_modulus, color=colors[i], s=10, alpha=0.5, label=f"{ref_temp} °C")
+        
+        # 4. Fit Curve
+        try:
+            combined_log_freq = np.array(combined_log_freq)
+            combined_storage_modulus = np.array(combined_storage_modulus)
+            
+            popt, _ = curve_fit(storage_modulus_model, combined_log_freq, combined_storage_modulus, 
+                              bounds=([1e-6, -100, -100, 1e-6], [a_high, 100, 100, d_high]), maxfev=100000)
+            
+            # Save results
+            results.append({
+                "Temperature": ref_temp,
+                "a": popt[0], "b": popt[1], "c": popt[2], "d": popt[3],
+                "r2": r2_score(combined_storage_modulus, storage_modulus_model(combined_log_freq, *popt))
+            })
+            
+            # 5. Plot Fit Line (Black Dashed)
+            x_rng = np.linspace(min(combined_log_freq), max(combined_log_freq), 100)
+            y_fit = storage_modulus_model(x_rng, *popt)
+            ax.plot(x_rng, y_fit, color='black', linestyle='--', linewidth=1)
+            
+        except Exception as e:
+            pass
+
+    # Graph Styling
+    ax.set_xlabel('Reduced Frequency (Hz)', fontsize=14)
+    ax.set_ylabel('Storage Modulus (MPa)', fontsize=14)
+    ax.set_title('Master Curve for All Reference Temperatures', fontsize=16)
+    
+    # Legend: Ref Temps + Fit Line
+    handles, labels = ax.get_legend_handles_labels()
+    dummy_line = Line2D([], [], color='black', linestyle='--', linewidth=1, label='Fit Line')
+    
+    # Streamlit sometimes duplicates labels in loops, dictionary filter fixes that
+    by_label = dict(zip(labels, handles))
+    final_handles = [dummy_line] + list(by_label.values())
+    final_labels = ['Fit Line'] + list(by_label.keys())
+    
+    ax.legend(final_handles, final_labels, bbox_to_anchor=(1.01, 1), loc='upper left')
+    add_watermark(ax)
+    
+    with col_graph:
+        st.pyplot(fig)
+        
+    # Data Table
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
     
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.dataframe(df_res, height=400)
+    with col_ctrl:
+        st.markdown("### Parameters")
+        st.dataframe(df_res, height=300)
         csv = df_res.to_csv(index=False)
-        st.download_button("Download Parameters CSV", csv, "parameters_per_temp.csv", "text/csv")
-        
-    with col2:
-        # PLOT: Modeled Master Curve for ALL Temperatures (Reconstructed)
-        fig = Figure(figsize=(8, 5))
-        ax = fig.add_subplot(111)
-        
-        # Use a typical frequency range for the X-axis
-        if st.session_state.data is not None:
-            freq_min = st.session_state.data['Frequency'].min()
-            freq_max = st.session_state.data['Frequency'].max()
-        else:
-            freq_min, freq_max = 0.01, 100
-            
-        freq_range = np.logspace(np.log10(freq_min), np.log10(freq_max), 100)
-        log_freq = np.log10(freq_range)
-        
-        darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
-        
-        for i, t in enumerate(sorted(shifts.keys())):
-            row = df_res[df_res['Temperature'] == t].iloc[0]
-            # E' = a * tanh(b * (log_w + c)) + d
-            E_model = storage_modulus_model(log_freq, row['a'], row['b'], row['c'], row['d'])
-            
-            color = darker[i % len(darker)]
-            ax.semilogx(freq_range, E_model, '-', color=color, linewidth=2, label=f"{t} °C")
-            
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Storage Modulus (MPa)")
-        ax.set_title("Modeled Master Curve (All Temps)")
-        ax.legend()
-        add_watermark(ax)
-        st.pyplot(fig)
+        st.download_button("Download CSV", csv, "parameters_per_temp.csv", "text/csv")
+
 
 def page_elastic_modulus():
     st.title("Step 7: Elastic Modulus vs Strain Rate")
-    if st.session_state.fitted_params is None: return st.warning("Run Step 5 first.")
+    if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
+        return st.warning("Run Step 5 or 6 first.")
     
     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     
@@ -321,35 +366,48 @@ def page_elastic_modulus():
     except:
         rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01, 0.1])
 
-    # Table calculation (Reference Temp)
-    params = st.session_state.fitted_params
+    # Table calculation (Reference Temp - Default to first or specific)
+    # If we have detailed params per temp, we can pick the lowest temp as 'Reference' for the table example
+    # or just use the fitted_params from Step 5 if available.
+    if st.session_state.fitted_params:
+        params = st.session_state.fitted_params
+    elif st.session_state.param_per_temp is not None:
+         # Fallback: use first row
+         params = st.session_state.param_per_temp.iloc[0].to_dict()
+    
     log_rates = np.log10(rates_table)
     E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
     
-    res_df = pd.DataFrame({"Strain Rate (1/s)": rates_table, "Predicted E (Ref Temp)": E_values})
+    res_df = pd.DataFrame({"Strain Rate (1/s)": rates_table, "Predicted E (Ref)": E_values})
     st.dataframe(res_df)
     
     # Plot ALL Temperatures
-    shifts = st.session_state.analysis_shift_factors
-    
     fig = Figure(figsize=(10, 6))
     ax = fig.add_subplot(111)
     
-    # Range: from very slow to fast strain rates
     plot_rates = np.logspace(-6, 2, 100)
     plot_log_rates = np.log10(plot_rates)
     
     darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
     
-    for i, t in enumerate(sorted(shifts.keys())):
-        sf = shifts[t]
-        # Adjust 'c' for this temperature
-        c_temp = params['c'] + np.log10(sf)
-        
-        E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
-        
-        color = darker[i % len(darker)]
-        ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+    # Use explicit parameters if available from Step 6, otherwise derive from TTS
+    if st.session_state.param_per_temp is not None:
+        df_params = st.session_state.param_per_temp
+        for i, row in df_params.iterrows():
+            t = row['Temperature']
+            E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
+            
+            color = darker[i % len(darker)]
+            ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+    else:
+        # Fallback to Step 5 params + Shift Factors
+        shifts = st.session_state.analysis_shift_factors
+        for i, t in enumerate(sorted(shifts.keys())):
+            sf = shifts[t]
+            c_temp = params['c'] + np.log10(sf)
+            E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
+            color = darker[i % len(darker)]
+            ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
 
     ax.set_xlabel("Strain Rate (1/s)", fontsize=14)
     ax.set_ylabel("Elastic Modulus (MPa)", fontsize=14)
