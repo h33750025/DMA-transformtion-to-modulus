@@ -20,7 +20,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom plot styles
+# ---------------------------------------------------------
+# NEW: Inject CSS to force Times New Roman for the Web UI
+# ---------------------------------------------------------
+st.markdown("""
+    <style>
+    html, body, [class*="css"] {
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+    .stButton button {
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+    .stTextInput input {
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Custom plot styles (Matplotlib)
 plt.rcParams['mathtext.fontset'] = 'custom'
 plt.rcParams['mathtext.rm'] = 'Times New Roman'
 plt.rcParams['font.family'] = 'Times New Roman'
@@ -439,5 +459,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
