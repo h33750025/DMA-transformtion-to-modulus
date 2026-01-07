@@ -103,7 +103,7 @@ def page_raw_data():
     ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
     ax.set_title("Raw Data Plot", fontsize=16)
     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    ax.grid(True, ls="--")
+    # ax.grid(True) -> Grid removed
     add_watermark(ax)
     st.pyplot(fig)
 
@@ -179,7 +179,7 @@ def page_tts():
             ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
             ax.set_title("Master Curve", fontsize=16)
             ax.legend()
-            ax.grid(True, which="both", ls="--")
+            # ax.grid(True) -> Grid removed
             add_watermark(ax)
             st.pyplot(fig)
             
@@ -193,11 +193,9 @@ def page_fitting():
     st.title("Step 5: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 4 first.")
     
-    # 1. REMOVED BUTTON: Fitting now happens automatically when sliders change
     a_high = st.slider("Max 'a'", 10.0, 5000.0, 2000.0)
     d_high = st.slider("Max 'd'", 10.0, 5000.0, 2000.0)
     
-    # Prepare Data
     data, shifts = st.session_state.data, st.session_state.analysis_shift_factors
     x_all, y_all = [], []
     
@@ -207,7 +205,6 @@ def page_fitting():
         x_all.extend(np.log10(valid['Frequency'] * sf))
         y_all.extend(valid['Storage Modulus'])
         
-    # Perform Fit Immediately
     try:
         popt, _ = curve_fit(storage_modulus_model, x_all, y_all, 
                           bounds=([1e-6, -100, -100, 1e-6], [a_high, 100, 100, d_high]), maxfev=100000)
@@ -219,11 +216,8 @@ def page_fitting():
         st.error(f"Fit Failed: {e}")
         return
 
-    # Plotting
     if st.session_state.fitted_params:
         params = st.session_state.fitted_params
-        # Optionally show params, commented out to keep it clean like specificed requests
-        # st.json(params) 
         
         fig = Figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
@@ -235,7 +229,6 @@ def page_fitting():
             freq = sub['Frequency'] * shifts[t]
             mask = freq > 0
             x_log = np.log10(freq[mask])
-            # 2. UPDATED LEGEND: {t} °C
             ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
             all_x.extend(x_log)
             
@@ -246,11 +239,9 @@ def page_fitting():
             
         ax.set_xlabel("Log(Frequency)")
         ax.set_ylabel("Modulus (MPa)")
-        
-        # 3. UPDATED TITLE: Only R square score
         ax.set_title(f"R² = {params['r2']:.4f}")
-        
         ax.legend()
+        # ax.grid(True) -> Grid removed
         add_watermark(ax)
         st.pyplot(fig)
 
@@ -278,10 +269,25 @@ def page_params_per_temp():
     
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
-    st.dataframe(df_res)
     
-    csv = df_res.to_csv(index=False)
-    st.download_button("Download Parameters CSV", csv, "parameters_per_temp.csv", "text/csv")
+    # NEW: Plot the Shift Factors
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.dataframe(df_res, height=400)
+        csv = df_res.to_csv(index=False)
+        st.download_button("Download Parameters CSV", csv, "parameters_per_temp.csv", "text/csv")
+        
+    with col2:
+        # Plot Log(aT) vs Temp
+        fig = Figure(figsize=(6, 4))
+        ax = fig.add_subplot(111)
+        ax.plot(df_res['Temperature'], np.log10(df_res['Shift Factor']), 'o-', color='purple')
+        ax.set_xlabel("Temperature (°C)")
+        ax.set_ylabel("Log10(Shift Factor)")
+        ax.set_title("Shift Factor vs Temperature")
+        # ax.grid(True) -> Grid removed
+        st.pyplot(fig)
 
 def page_elastic_modulus():
     st.title("Step 7: Elastic Modulus vs Strain Rate")
@@ -289,31 +295,58 @@ def page_elastic_modulus():
     
     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     
-    strain_rates = st.text_input("Enter Strain Rates (comma separated)", "0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1")
+    strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1")
     
-    if st.button("Calculate Elastic Modulus"):
-        try:
-            rates = [float(x.strip()) for x in strain_rates.split(',')]
-            rates = np.array(sorted(rates))
-            
-            params = st.session_state.fitted_params
-            log_rates = np.log10(rates)
-            E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
-            
-            res_df = pd.DataFrame({"Strain Rate (1/s)": rates, "Predicted Elastic Modulus (MPa)": E_values})
-            st.dataframe(res_df)
-            
-            fig = Figure(figsize=(10, 6))
-            ax = fig.add_subplot(111)
-            ax.semilogx(rates, E_values, 'bs-', lw=2)
-            ax.set_xlabel("Strain Rate (1/s)"); ax.set_ylabel("Elastic Modulus (MPa)")
-            ax.set_title("Elastic Modulus vs Strain Rate")
-            ax.grid(True, which="both", ls="--")
-            add_watermark(ax)
-            st.pyplot(fig)
-            
-        except Exception as e:
-            st.error(f"Calculation Error: {e}")
+    # Prepare inputs
+    try:
+        rates_table = [float(x.strip()) for x in strain_rates.split(',')]
+        rates_table = np.array(sorted(rates_table))
+    except:
+        rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01, 0.1])
+
+    # Calculate for Reference Temp (default behavior for table)
+    params = st.session_state.fitted_params
+    log_rates = np.log10(rates_table)
+    E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
+    
+    res_df = pd.DataFrame({"Strain Rate (1/s)": rates_table, "Predicted E (Ref Temp)": E_values})
+    st.dataframe(res_df)
+    
+    # NEW: Plot ALL Temperatures
+    shifts = st.session_state.analysis_shift_factors
+    
+    fig = Figure(figsize=(10, 6))
+    ax = fig.add_subplot(111)
+    
+    # Generate smooth range for plotting
+    plot_rates = np.logspace(-6, 2, 100)
+    plot_log_rates = np.log10(plot_rates)
+    
+    # Use dark colors list
+    darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
+    
+    for i, t in enumerate(sorted(shifts.keys())):
+        sf = shifts[t]
+        # Shifted 'c' parameter for this temperature
+        # The model is E(w) = a*tanh(b*(log(w) + c)) + d
+        # For a specific temp T, the curve is shifted by log(aT)
+        # So effectively, input log_rate becomes (log_rate + log(aT)) inside the master model
+        
+        # Alternatively using the derived 'c' per temp:
+        c_temp = params['c'] + np.log10(sf)
+        
+        E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
+        
+        color = darker[i % len(darker)]
+        ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+
+    ax.set_xlabel("Strain Rate (1/s)", fontsize=14)
+    ax.set_ylabel("Elastic Modulus (MPa)", fontsize=14)
+    ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)", fontsize=16)
+    ax.legend()
+    # ax.grid(True) -> Grid removed
+    add_watermark(ax)
+    st.pyplot(fig)
 
 # ==========================================
 # Main Navigation
