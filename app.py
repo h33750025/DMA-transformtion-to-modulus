@@ -21,7 +21,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# NEW: Inject CSS to force Times New Roman for the Web UI
+# CSS: Force Times New Roman for Web UI Elements
 # ---------------------------------------------------------
 st.markdown("""
     <style>
@@ -37,13 +37,26 @@ st.markdown("""
     .stTextInput input {
         font-family: 'Times New Roman', Times, serif !important;
     }
+    div[data-baseweb="slider"] {
+        font-family: 'Times New Roman', Times, serif !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# Custom plot styles (Matplotlib)
+# ---------------------------------------------------------
+# Matplotlib: Force Times New Roman for ALL Graphs
+# ---------------------------------------------------------
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = ['Times New Roman']
 plt.rcParams['mathtext.fontset'] = 'custom'
 plt.rcParams['mathtext.rm'] = 'Times New Roman'
-plt.rcParams['font.family'] = 'Times New Roman'
+plt.rcParams['mathtext.it'] = 'Times New Roman:italic'
+plt.rcParams['mathtext.bf'] = 'Times New Roman:bold'
+plt.rcParams['axes.titlesize'] = 16
+plt.rcParams['axes.labelsize'] = 14
+plt.rcParams['xtick.labelsize'] = 12
+plt.rcParams['ytick.labelsize'] = 12
+plt.rcParams['legend.fontsize'] = 12
 
 # ==========================================
 # Helper Functions
@@ -124,9 +137,9 @@ def page_raw_data():
         ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
                    color=darker[i%len(darker)], label=f"{temp} °C", marker='o')
     
-    ax.set_xlabel('Frequency (Hz)', fontsize=14)
-    ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
-    ax.set_title("Raw Data Plot", fontsize=16)
+    ax.set_xlabel('Frequency (Hz)')
+    ax.set_ylabel("Storage Modulus (MPa)")
+    ax.set_title("Raw Data Plot")
     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     add_watermark(ax)
     st.pyplot(fig)
@@ -199,9 +212,9 @@ def page_tts():
                 sub = st.session_state.data[st.session_state.data['Temperature'] == t]
                 ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
                 
-            ax.set_xlabel("Reduced Frequency (Hz)", fontsize=14)
-            ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
-            ax.set_title("Master Curve", fontsize=16)
+            ax.set_xlabel("Reduced Frequency (Hz)")
+            ax.set_ylabel("Storage Modulus (MPa)")
+            ax.set_title("Master Curve")
             ax.legend()
             add_watermark(ax)
             st.pyplot(fig)
@@ -348,9 +361,9 @@ def page_params_per_temp():
         except Exception as e:
             pass
 
-    ax.set_xlabel('Reduced Frequency (Hz)', fontsize=14)
-    ax.set_ylabel('Storage Modulus (MPa)', fontsize=14)
-    ax.set_title('Master Curve for All Reference Temperatures', fontsize=16)
+    ax.set_xlabel('Reduced Frequency (Hz)')
+    ax.set_ylabel('Storage Modulus (MPa)')
+    ax.set_title('Master Curve for All Reference Temperatures')
     
     handles, labels = ax.get_legend_handles_labels()
     dummy_line = Line2D([], [], color='black', linestyle='--', linewidth=1, label='Fit Line')
@@ -431,9 +444,9 @@ def page_elastic_modulus():
             color = darker[i % len(darker)]
             ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
 
-    ax.set_xlabel("Strain Rate (1/s)", fontsize=14)
-    ax.set_ylabel("Elastic Modulus (MPa)", fontsize=14)
-    ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)", fontsize=16)
+    ax.set_xlabel("Strain Rate (1/s)")
+    ax.set_ylabel("Elastic Modulus (MPa)")
+    ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
     ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
     add_watermark(ax)
     st.pyplot(fig)
