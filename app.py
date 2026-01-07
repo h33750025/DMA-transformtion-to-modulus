@@ -41,7 +41,7 @@ def add_watermark(ax, text="NYU-ViscoMOD"):
         ha="right", va="bottom", alpha=0.5, transform=ax.transAxes
     )
     
-    # Check if the axis is a 3D axis (has the text2D method)
+    # Check if the axis is a 3D axis
     if hasattr(ax, 'text2D'):
         ax.text2D(0.99, 0.01, text, **props)
     else:
@@ -114,22 +114,18 @@ def page_3d_surface():
     data = st.session_state.data
     X, Y, Z = data['Temperature'], data['Frequency'], data['Storage Modulus']
     
-    # Create grid
     x_grid, y_grid = np.meshgrid(np.linspace(X.max(), X.min(), 100), np.linspace(Y.min(), Y.max(), 100))
     
     try:
         Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
         fig = Figure(figsize=(10, 7))
         ax = fig.add_subplot(111, projection='3d')
-        
         surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
         
         ax.set_xlabel('Temperature (°C)')
         ax.set_ylabel('Frequency (Hz)')
         ax.set_zlabel('Modulus (MPa)')
-        
         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
-        
         add_watermark(ax)
         st.pyplot(fig)
     except Exception as e:
@@ -166,20 +162,35 @@ def page_tts():
         st.success("TTS Complete")
         
     if st.session_state.master_curve_data is not None:
-        fig = Figure(figsize=(10, 6))
-        ax = fig.add_subplot(111)
         shifts = st.session_state.analysis_shift_factors
         
-        for t in sorted(shifts.keys()):
-            sf = shifts[t]
-            sub = st.session_state.data[st.session_state.data['Temperature'] == t]
-            ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t}C (aT={sf:.2e})")
+        # Create columns: Graph (left) and Table (right)
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            fig = Figure(figsize=(10, 6))
+            ax = fig.add_subplot(111)
             
-        ax.set_xlabel("Reduced Frequency (Hz)"); ax.set_ylabel("Storage Modulus (MPa)")
-        ax.set_title("Master Curve")
-        ax.legend()
-        add_watermark(ax)
-        st.pyplot(fig)
+            for t in sorted(shifts.keys()):
+                sf = shifts[t]
+                sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+                # FIX: Removed shift factor from label, showing only temperature
+                ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
+                
+            ax.set_xlabel("Reduced Frequency (Hz)", fontsize=14)
+            ax.set_ylabel("Storage Modulus (MPa)", fontsize=14)
+            ax.set_title("Master Curve", fontsize=16)
+            ax.legend()
+            ax.grid(True, which="both", ls="--")
+            add_watermark(ax)
+            st.pyplot(fig)
+            
+        with col2:
+            st.write("### Shift Factors")
+            # FIX: Added table display
+            sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
+            df_sf = pd.DataFrame(sf_list)
+            st.dataframe(df_sf, height=500)
 
 def page_fitting():
     st.title("Step 5: Curve Fitting")
@@ -216,7 +227,6 @@ def page_fitting():
         fig = Figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
         
-        # Plot data
         all_x = []
         shifts = st.session_state.analysis_shift_factors
         for t in sorted(shifts):
@@ -227,7 +237,6 @@ def page_fitting():
             ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t}C")
             all_x.extend(x_log)
             
-        # Plot fit
         if all_x:
             x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
             y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
