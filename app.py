@@ -438,13 +438,13 @@ def page_elastic_modulus():
     
     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     
-    strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1")
+    strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
     
     try:
         rates_table = [float(x.strip()) for x in strain_rates.split(',')]
         rates_table = np.array(sorted(rates_table))
     except:
-        rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01, 0.1])
+        rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01])
 
     # Table calculation (Reference Temp - Default to first or specific)
     if st.session_state.fitted_params:
@@ -512,4 +512,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
