@@ -238,7 +238,7 @@ def page_tts():
     if st.session_state.master_curve_data is not None:
         shifts = st.session_state.analysis_shift_factors
         
-        col1, col2 = st.columns([3, 1])
+        col1, col2 = st.columns([1, 3])
         
         with col1:
             st.write("### Shift Factors")
@@ -521,6 +521,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
