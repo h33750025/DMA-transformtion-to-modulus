@@ -323,16 +323,29 @@ def page_tts():
 
             # 2. Save plot to a temporary buffer
             buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches='tight')
+            fig.savefig(buf, format="png", bbox_inches='tight', dpi=300)
             buf.seek(0)
 
-            # 3. Create Download Button
-            st.download_button(
-                label="💾 Download Graph as PNG",
-                data=buf,
-                file_name="master_curve.png",
-                mime="image/png"
-            )
+            # # 3. Create Download Button
+            # st.download_button(
+            #     label="💾 Download Graph as PNG",
+            #     data=buf,
+            #     file_name="master_curve.png",
+            #     mime="image/png"
+            # )
+            
+            # 3. Layout: Spacer on left, Button on right
+            # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+            buff_col, button_col = st.columns([5, 2]) 
+            
+            with button_col:
+                st.download_button(
+                    label="💾 Download Graph",
+                    data=buf,
+                    file_name="master_curve_high_res.png",
+                    mime="image/png",
+                    use_container_width=True # Makes the button fill the column width
+                )
 
 
 def page_fitting():
@@ -591,6 +604,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
