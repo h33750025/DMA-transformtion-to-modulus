@@ -324,7 +324,7 @@ def page_tts():
                 sub = st.session_state.data[st.session_state.data['Temperature'] == t]
                 ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
                 
-            ax.set_xlabel("Reduced Frequency (Hz)")
+            ax.set_xlabel("Frequency (Hz)")
             ax.set_ylabel("Storage Modulus (MPa)")
             ax.set_title("Master Curve")
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -391,7 +391,6 @@ def page_fitting():
         with col_graph: # Show error where graph would be
             st.error(f"Fit Failed: {e}")
         return
-
     # --- Right Column: Graph ---
     with col_graph:
         if st.session_state.fitted_params:
@@ -417,17 +416,28 @@ def page_fitting():
                 
             ax.set_xlabel("Log(Frequency)")
             ax.set_ylabel("Modulus (MPa)")
-            ax.set_title(f"R² = {params['r2']:.4f}")
+            
+            # --- CHANGE 1: New Title ---
+            ax.set_title("Model Fitting")
+            
+            # --- CHANGE 2: R² Score in Top Left ---
+            # transform=ax.transAxes maps 0,0 to bottom-left and 1,1 to top-right
+            ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
+                    transform=ax.transAxes, 
+                    verticalalignment='top',
+                    fontsize=12,
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
             add_watermark(ax)
             st.pyplot(fig)
+
             # 2. Save plot to a temporary buffer
             buf = io.BytesIO()
             fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
             buf.seek(0)
 
             # 3. Layout: Spacer on left, Button on right
-            # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
             buff_col, button_col = st.columns([5, 2]) 
             
             with button_col:
@@ -436,8 +446,55 @@ def page_fitting():
                     data=buf,
                     file_name="Curve Fitting plot.png",
                     mime="image/png",
-                    use_container_width=True # Makes the button fill the column width
+                    use_container_width=True
                 )
+    # # --- Right Column: Graph ---
+    # with col_graph:
+    #     if st.session_state.fitted_params:
+    #         params = st.session_state.fitted_params
+            
+    #         fig = Figure(figsize=(10, 6))
+    #         ax = fig.add_subplot(111)
+            
+    #         all_x = []
+    #         shifts = st.session_state.analysis_shift_factors
+    #         for t in sorted(shifts):
+    #             sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+    #             freq = sub['Frequency'] * shifts[t]
+    #             mask = freq > 0
+    #             x_log = np.log10(freq[mask])
+    #             ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
+    #             all_x.extend(x_log)
+                
+    #         if all_x:
+    #             x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
+    #             y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
+    #             ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
+                
+    #         ax.set_xlabel("Log(Frequency)")
+    #         ax.set_ylabel("Modulus (MPa)")
+    #         ax.set_title(f"R² = {params['r2']:.4f}")
+    #         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    #         add_watermark(ax)
+    #         st.pyplot(fig)
+    #         # 2. Save plot to a temporary buffer
+    #         buf = io.BytesIO()
+    #         fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+    #         buf.seek(0)
+
+    #         # 3. Layout: Spacer on left, Button on right
+    #         # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+    #         buff_col, button_col = st.columns([5, 2]) 
+            
+    #         with button_col:
+    #             st.download_button(
+    #                 label="💾 Download Graph",
+    #                 data=buf,
+    #                 file_name="Curve Fitting plot.png",
+    #                 mime="image/png",
+    #                 use_container_width=True # Makes the button fill the column width
+    #             )
+    
 
 
 def page_params_per_temp():
@@ -655,6 +712,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
