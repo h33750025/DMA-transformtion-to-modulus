@@ -94,8 +94,8 @@ if 'master_curve_data' not in st.session_state: st.session_state.master_curve_da
 if 'param_per_temp' not in st.session_state: st.session_state.param_per_temp = None
 
 # Initialize Global Bounds if they don't exist
-if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 100.0
-if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 100.0
+if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 500.0
+if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 500.0
 
 # ==========================================
 # Pages
@@ -185,7 +185,7 @@ def page_load_and_visualize():
             for i, temp in enumerate(temps):
                 sub = data[data['Temperature'] == temp].sort_values('Frequency')
                 ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
-                           color=darker[i%len(darker)], label=f"{temp} °C", marker='o')
+                           color=darker[i%len(darker)], label=f"{temp} °C")
             ax.set_xlabel('Frequency (Hz)'); ax.set_ylabel("Storage Modulus (MPa)"); ax.set_title("Raw Data Plot")
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); add_watermark(ax)
             st.pyplot(fig)
@@ -507,6 +507,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
