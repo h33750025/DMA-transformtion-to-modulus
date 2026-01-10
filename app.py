@@ -414,8 +414,8 @@ def page_fitting():
                 y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
                 ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
                 
-            ax.set_xlabel("Log(Frequency)",fontsize=12)
-            ax.set_ylabel("Modulus (MPa)",fontsize=12)
+            ax.set_xlabel(f"Log(Frequency)")
+            ax.set_ylabel(f"Modulus (MPa)")
             
             # --- CHANGE 1: New Title ---
             ax.set_title("Model Fitting")
@@ -424,8 +424,7 @@ def page_fitting():
             # transform=ax.transAxes maps 0,0 to bottom-left and 1,1 to top-right
             ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
                     transform=ax.transAxes, 
-                    verticalalignment='top',
-                    fontsize=12,)
+                    verticalalignment='top')
                     #bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
             
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
@@ -666,6 +665,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
