@@ -158,7 +158,7 @@ def page_load_and_visualize():
                         st.download_button(
                             label="💾 Download Graph",
                             data=buf,
-                            file_name="master_curve.png",
+                            file_name="Raw data plot.png",
                             mime="image/png",
                             use_container_width=True # Makes the button fill the column width
                         )
@@ -182,6 +182,23 @@ def page_load_and_visualize():
                         fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
                         add_watermark(ax)
                         st.pyplot(fig)
+                        # 2. Save plot to a temporary buffer
+                        buf = io.BytesIO()
+                        fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+                        buf.seek(0)
+            
+                        # 3. Layout: Spacer on left, Button on right
+                        # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+                        buff_col, button_col = st.columns([5, 2]) 
+                        
+                        with button_col:
+                            st.download_button(
+                                label="💾 Download Graph",
+                                data=buf,
+                                file_name="3D Raw data plot.png",
+                                mime="image/png",
+                                use_container_width=True # Makes the button fill the column width
+                            )
                     except Exception as e:
                         st.error(f"3D Plot Error: {e}")
 
@@ -207,6 +224,23 @@ def page_load_and_visualize():
             ax.set_xlabel('Frequency (Hz)'); ax.set_ylabel("Storage Modulus (MPa)"); ax.set_title("Raw Data Plot")
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); add_watermark(ax)
             st.pyplot(fig)
+            # 2. Save plot to a temporary buffer
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+            buf.seek(0)
+
+            # 3. Layout: Spacer on left, Button on right
+            # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+            buff_col, button_col = st.columns([5, 2]) 
+            
+            with button_col:
+                st.download_button(
+                    label="💾 Download Graph",
+                    data=buf,
+                    file_name="Raw data plot.png",
+                    mime="image/png",
+                    use_container_width=True # Makes the button fill the column width
+                )
         with tab2:
             data = st.session_state.data
             X, Y, Z = data['Temperature'], data['Frequency'], data['Storage Modulus']
@@ -220,6 +254,23 @@ def page_load_and_visualize():
                 fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10).set_label('Storage Modulus (MPa)')
                 add_watermark(ax)
                 st.pyplot(fig)
+                # 2. Save plot to a temporary buffer
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+                buf.seek(0)
+    
+                # 3. Layout: Spacer on left, Button on right
+                # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+                buff_col, button_col = st.columns([5, 2]) 
+                
+                with button_col:
+                    st.download_button(
+                        label="💾 Download Graph",
+                        data=buf,
+                        file_name="3D Raw data plot.png",
+                        mime="image/png",
+                        use_container_width=True # Makes the button fill the column width
+                    )
             except: pass
 
 
@@ -370,6 +421,23 @@ def page_fitting():
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
             add_watermark(ax)
             st.pyplot(fig)
+            # 2. Save plot to a temporary buffer
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+            buf.seek(0)
+
+            # 3. Layout: Spacer on left, Button on right
+            # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+            buff_col, button_col = st.columns([5, 2]) 
+            
+            with button_col:
+                st.download_button(
+                    label="💾 Download Graph",
+                    data=buf,
+                    file_name="Curve Fitting plot.png",
+                    mime="image/png",
+                    use_container_width=True # Makes the button fill the column width
+                )
 
 
 def page_params_per_temp():
@@ -465,15 +533,28 @@ def page_params_per_temp():
     
     with col_graph:
         st.pyplot(fig)
+        # 2. Save plot to a temporary buffer
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+        buf.seek(0)
+
+        # 3. Layout: Spacer on left, Button on right
+        # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+        buff_col, button_col = st.columns([5, 2]) 
+        
+        with button_col:
+            st.download_button(
+                label="💾 Download Graph",
+                data=buf,
+                file_name="Curve Fitting All Temperatures plot.png",
+                mime="image/png",
+                use_container_width=True # Makes the button fill the column width
+            )
+        
         
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
     
-    # with col_ctrl:
-    #     st.markdown("### Parameters")
-    #     st.dataframe(df_res, height=300)
-    #     csv = df_res.to_csv(index=False)
-    #     st.download_button("Download CSV", csv, "parameters_per_temp.csv", "text/csv")
 
 
 def page_elastic_modulus():
@@ -537,6 +618,23 @@ def page_elastic_modulus():
     ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
     add_watermark(ax)
     st.pyplot(fig)
+    # 2. Save plot to a temporary buffer
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+    buf.seek(0)
+
+    # 3. Layout: Spacer on left, Button on right
+    # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+    buff_col, button_col = st.columns([5, 2]) 
+    
+    with button_col:
+        st.download_button(
+            label="💾 Download Graph",
+            data=buf,
+            file_name="Elastic Modulus plot.png",
+            mime="image/png",
+            use_container_width=True # Makes the button fill the column width
+        )
 
 # ==========================================
 # Main Navigation
@@ -557,6 +655,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
