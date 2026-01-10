@@ -313,7 +313,7 @@ def page_tts():
             st.write("### Shift Factors")
             sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
             df_sf = pd.DataFrame(sf_list)
-            st.dataframe(df_sf, height=500)
+            st.dataframe(df_sf, height=500, hide_index=True)
             
         with col2:
             fig = Figure(figsize=(10, 6))
@@ -676,6 +676,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
