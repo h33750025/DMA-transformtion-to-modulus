@@ -424,8 +424,8 @@ def page_fitting():
             # transform=ax.transAxes maps 0,0 to bottom-left and 1,1 to top-right
             ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
                     transform=ax.transAxes, 
-                    verticalalignment='top')
-                    #bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+                    verticalalignment='top', fontsize = 16)
+                 
             
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
             add_watermark(ax)
@@ -665,6 +665,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
