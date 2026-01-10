@@ -562,7 +562,7 @@ def page_params_per_temp():
             )
         
         
-    df_res = pd.DataFrame(results, hide_index=True)
+    df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
     
 
@@ -676,6 +676,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
