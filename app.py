@@ -145,6 +145,24 @@ def page_load_and_visualize():
                     add_watermark(ax)
                     st.pyplot(fig)
 
+                    # 2. Save plot to a temporary buffer
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+                    buf.seek(0)
+        
+                    # 3. Layout: Spacer on left, Button on right
+                    # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+                    buff_col, button_col = st.columns([5, 2]) 
+                    
+                    with button_col:
+                        st.download_button(
+                            label="💾 Download Graph",
+                            data=buf,
+                            file_name="master_curve.png",
+                            mime="image/png",
+                            use_container_width=True # Makes the button fill the column width
+                        )
+
                 # --- 3D Plot Logic ---
                 with tab2:
                     data = st.session_state.data
@@ -205,63 +223,6 @@ def page_load_and_visualize():
             except: pass
 
 
-# def page_tts():
-#     st.title("Step 2: TTS Analysis")
-#     if st.session_state.data is None: return st.warning("No data loaded.")
-    
-#     if st.button("Run Auto-Shift"):
-#         data = st.session_state.data
-#         ref_temp = min(data["Temperature"].unique())
-#         extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
-#         shift_factors = {ref_temp: 1.0}
-        
-#         for temp in sorted([t for t in data["Temperature"].unique() if t > ref_temp]):
-#             df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
-#             max_freq = df_temp["Frequency"].max()
-#             mod_at_max = df_temp.iloc[-1]["Storage Modulus"]
-            
-#             # Find overlap match
-#             idx = (extended["Storage Modulus"] - mod_at_max).abs().idxmin()
-#             match_freq = extended.loc[idx, "Frequency"]
-            
-#             sf = match_freq / max_freq
-#             shift_factors[temp] = sf
-            
-#             shifted = df_temp.copy()
-#             shifted["Frequency"] *= sf
-#             extended = pd.concat([extended, shifted], ignore_index=True).sort_values("Frequency")
-            
-#         st.session_state.analysis_shift_factors = shift_factors
-#         st.session_state.master_curve_data = extended
-#         st.success("TTS Complete")
-        
-#     if st.session_state.master_curve_data is not None:
-#         shifts = st.session_state.analysis_shift_factors
-        
-#         col1, col2 = st.columns([1, 3])
-        
-#         with col1:
-#             st.write("### Shift Factors")
-#             sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
-#             df_sf = pd.DataFrame(sf_list)
-#             st.dataframe(df_sf, height=500)
-            
-#         with col2:
-#             fig = Figure(figsize=(10, 6))
-#             ax = fig.add_subplot(111)
-            
-#             for t in sorted(shifts.keys()):
-#                 sf = shifts[t]
-#                 sub = st.session_state.data[st.session_state.data['Temperature'] == t]
-#                 ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
-                
-#             ax.set_xlabel("Reduced Frequency (Hz)")
-#             ax.set_ylabel("Storage Modulus (MPa)")
-#             ax.set_title("Master Curve")
-#             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-#             add_watermark(ax)
-#             st.pyplot(fig)
-            
 def page_tts():
     st.title("Step 2: TTS Analysis")
     if st.session_state.data is None: return st.warning("No data loaded.")
@@ -323,17 +284,9 @@ def page_tts():
 
             # 2. Save plot to a temporary buffer
             buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches='tight', dpi=300)
+            fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
             buf.seek(0)
 
-            # # 3. Create Download Button
-            # st.download_button(
-            #     label="💾 Download Graph as PNG",
-            #     data=buf,
-            #     file_name="master_curve.png",
-            #     mime="image/png"
-            # )
-            
             # 3. Layout: Spacer on left, Button on right
             # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
             buff_col, button_col = st.columns([5, 2]) 
@@ -342,7 +295,7 @@ def page_tts():
                 st.download_button(
                     label="💾 Download Graph",
                     data=buf,
-                    file_name="master_curve_high_res.png",
+                    file_name="master_curve.png",
                     mime="image/png",
                     use_container_width=True # Makes the button fill the column width
                 )
@@ -604,6 +557,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
