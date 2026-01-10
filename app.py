@@ -138,8 +138,8 @@ def page_load_and_visualize():
                         ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
                                    color=darker[i%len(darker)], label=f"{temp} °C")
                     
-                    ax.set_xlabel('Frequency (Hz)')
-                    ax.set_ylabel("Storage Modulus (MPa)")
+                    ax.set_xlabel('Frequency (Hz)', fontname="Times New Roman")
+                    ax.set_ylabel("Storage Modulus (MPa)", fontname="Times New Roman")
                     ax.set_title("Raw Data Plot")
                     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
                     add_watermark(ax)
@@ -507,6 +507,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
