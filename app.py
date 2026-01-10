@@ -136,7 +136,7 @@ def page_load_and_visualize():
                     for i, temp in enumerate(temps):
                         sub = data[data['Temperature'] == temp].sort_values('Frequency')
                         ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
-                                   color=darker[i%len(darker)], label=f"{temp} °C", marker='o')
+                                   color=darker[i%len(darker)], label=f"{temp} °C")
                     
                     ax.set_xlabel('Frequency (Hz)')
                     ax.set_ylabel("Storage Modulus (MPa)")
@@ -507,4 +507,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
