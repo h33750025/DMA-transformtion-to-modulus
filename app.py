@@ -419,11 +419,11 @@ def page_params_per_temp():
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
     
-    with col_ctrl:
-        st.markdown("### Parameters")
-        st.dataframe(df_res, height=300)
-        csv = df_res.to_csv(index=False)
-        st.download_button("Download CSV", csv, "parameters_per_temp.csv", "text/csv")
+    # with col_ctrl:
+    #     st.markdown("### Parameters")
+    #     st.dataframe(df_res, height=300)
+    #     csv = df_res.to_csv(index=False)
+    #     st.download_button("Download CSV", csv, "parameters_per_temp.csv", "text/csv")
 
 
 def page_elastic_modulus():
@@ -507,6 +507,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
