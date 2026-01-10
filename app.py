@@ -598,7 +598,7 @@ def page_elastic_modulus():
         log_rates = np.log10(rates_table)
         E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
         
-        res_df = pd.DataFrame({"($\dot{\epsilon}$) ($s^{-1}$)": rates_table, "E (MPa)": E_values})
+        res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
         st.dataframe(res_df)
 
     # --- Right Column: Graph & Download ---
@@ -676,6 +676,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
