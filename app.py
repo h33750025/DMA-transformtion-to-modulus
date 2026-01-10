@@ -599,7 +599,7 @@ def page_elastic_modulus():
         E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
         
         res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
-        st.dataframe(res_df, hide_index=True)
+        st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
 
     # --- Right Column: Graph & Download ---
     with col_right:
@@ -676,6 +676,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
