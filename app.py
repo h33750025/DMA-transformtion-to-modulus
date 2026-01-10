@@ -262,18 +262,85 @@ def page_tts():
             df_sf = pd.DataFrame(sf_list)
             st.dataframe(df_sf, height=500)
 
+# def page_fitting():
+#     st.title("Step 3: Curve Fitting")
+#     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
+    
+#     # Real-time fitting sliders using Global Defaults
+#     a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
+#     d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+    
+#     # Update Global State
+#     st.session_state.global_a_upper = a_high
+#     st.session_state.global_d_upper = d_high
+    
+#     data, shifts = st.session_state.data, st.session_state.analysis_shift_factors
+#     x_all, y_all = [], []
+    
+#     for t, sf in shifts.items():
+#         sub = data[data['Temperature'] == t]
+#         valid = sub[sub['Frequency'] > 0]
+#         x_all.extend(np.log10(valid['Frequency'] * sf))
+#         y_all.extend(valid['Storage Modulus'])
+        
+#     try:
+#         popt, _ = curve_fit(storage_modulus_model, x_all, y_all, 
+#                           bounds=([1e-6, -100, -100, 1e-6], [a_high, 100, 100, d_high]), maxfev=100000)
+        
+#         params = {'a': popt[0], 'b': popt[1], 'c': popt[2], 'd': popt[3]}
+#         params['r2'] = r2_score(y_all, storage_modulus_model(x_all, *popt))
+#         st.session_state.fitted_params = params
+#     except Exception as e:
+#         st.error(f"Fit Failed: {e}")
+#         return
+
+#     if st.session_state.fitted_params:
+#         params = st.session_state.fitted_params
+        
+#         fig = Figure(figsize=(10, 6))
+#         ax = fig.add_subplot(111)
+        
+#         all_x = []
+#         shifts = st.session_state.analysis_shift_factors
+#         for t in sorted(shifts):
+#             sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+#             freq = sub['Frequency'] * shifts[t]
+#             mask = freq > 0
+#             x_log = np.log10(freq[mask])
+#             ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
+#             all_x.extend(x_log)
+            
+#         if all_x:
+#             x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
+#             y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
+#             ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
+            
+#         ax.set_xlabel("Log(Frequency)")
+#         ax.set_ylabel("Modulus (MPa)")
+#         ax.set_title(f"R² = {params['r2']:.4f}")
+#         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+#         add_watermark(ax)
+#         st.pyplot(fig)
+
 def page_fitting():
     st.title("Step 3: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     
-    # Real-time fitting sliders using Global Defaults
-    a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
-    d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+    # Create Layout: Left for controls (smaller), Right for graph (larger)
+    col_controls, col_graph = st.columns([1, 3])
     
-    # Update Global State
-    st.session_state.global_a_upper = a_high
-    st.session_state.global_d_upper = d_high
+    # --- Left Column: Sliders ---
+    with col_controls:
+        st.markdown("### Parameters")
+        # Real-time fitting sliders using Global Defaults
+        a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
+        d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+        
+        # Update Global State
+        st.session_state.global_a_upper = a_high
+        st.session_state.global_d_upper = d_high
     
+    # --- Data Processing & Fitting (Runs in background) ---
     data, shifts = st.session_state.data, st.session_state.analysis_shift_factors
     x_all, y_all = [], []
     
@@ -291,36 +358,40 @@ def page_fitting():
         params['r2'] = r2_score(y_all, storage_modulus_model(x_all, *popt))
         st.session_state.fitted_params = params
     except Exception as e:
-        st.error(f"Fit Failed: {e}")
+        with col_graph: # Show error where graph would be
+            st.error(f"Fit Failed: {e}")
         return
 
-    if st.session_state.fitted_params:
-        params = st.session_state.fitted_params
-        
-        fig = Figure(figsize=(10, 6))
-        ax = fig.add_subplot(111)
-        
-        all_x = []
-        shifts = st.session_state.analysis_shift_factors
-        for t in sorted(shifts):
-            sub = st.session_state.data[st.session_state.data['Temperature'] == t]
-            freq = sub['Frequency'] * shifts[t]
-            mask = freq > 0
-            x_log = np.log10(freq[mask])
-            ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
-            all_x.extend(x_log)
+    # --- Right Column: Graph ---
+    with col_graph:
+        if st.session_state.fitted_params:
+            params = st.session_state.fitted_params
             
-        if all_x:
-            x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
-            y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
-            ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
+            fig = Figure(figsize=(10, 6))
+            ax = fig.add_subplot(111)
             
-        ax.set_xlabel("Log(Frequency)")
-        ax.set_ylabel("Modulus (MPa)")
-        ax.set_title(f"R² = {params['r2']:.4f}")
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-        add_watermark(ax)
-        st.pyplot(fig)
+            all_x = []
+            shifts = st.session_state.analysis_shift_factors
+            for t in sorted(shifts):
+                sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+                freq = sub['Frequency'] * shifts[t]
+                mask = freq > 0
+                x_log = np.log10(freq[mask])
+                ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
+                all_x.extend(x_log)
+                
+            if all_x:
+                x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
+                y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
+                ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
+                
+            ax.set_xlabel("Log(Frequency)")
+            ax.set_ylabel("Modulus (MPa)")
+            ax.set_title(f"R² = {params['r2']:.4f}")
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            add_watermark(ax)
+            st.pyplot(fig)
+
 
 def page_params_per_temp():
     st.title("Step 4: Master Curve Parameters")
@@ -507,6 +578,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
