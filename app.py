@@ -352,6 +352,102 @@ def page_tts():
                 )
 
 
+# def page_fitting():
+#     st.title("Step 3: Curve Fitting")
+#     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
+    
+#     # Create Layout: Left for controls (smaller), Right for graph (larger)
+#     col_controls, col_graph = st.columns([1, 3])
+    
+#     # --- Left Column: Sliders ---
+#     with col_controls:
+#         st.markdown("### Parameters")
+#         # Real-time fitting sliders using Global Defaults
+#         a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
+#         d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+        
+#         # Update Global State
+#         st.session_state.global_a_upper = a_high
+#         st.session_state.global_d_upper = d_high
+    
+#     # --- Data Processing & Fitting (Runs in background) ---
+#     data, shifts = st.session_state.data, st.session_state.analysis_shift_factors
+#     x_all, y_all = [], []
+    
+#     for t, sf in shifts.items():
+#         sub = data[data['Temperature'] == t]
+#         valid = sub[sub['Frequency'] > 0]
+#         x_all.extend(np.log10(valid['Frequency'] * sf))
+#         y_all.extend(valid['Storage Modulus'])
+        
+#     try:
+#         popt, _ = curve_fit(storage_modulus_model, x_all, y_all, 
+#                           bounds=([1e-6, -100, -100, 1e-6], [a_high, 100, 100, d_high]), maxfev=100000)
+        
+#         params = {'a': popt[0], 'b': popt[1], 'c': popt[2], 'd': popt[3]}
+#         params['r2'] = r2_score(y_all, storage_modulus_model(x_all, *popt))
+#         st.session_state.fitted_params = params
+#     except Exception as e:
+#         with col_graph: # Show error where graph would be
+#             st.error(f"Fit Failed: {e}")
+#         return
+#     # --- Right Column: Graph ---
+#     with col_graph:
+#         if st.session_state.fitted_params:
+#             params = st.session_state.fitted_params
+            
+#             fig = Figure(figsize=(10, 6))
+#             ax = fig.add_subplot(111)
+            
+#             all_x = []
+#             shifts = st.session_state.analysis_shift_factors
+#             for t in sorted(shifts):
+#                 sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+#                 freq = sub['Frequency'] * shifts[t]
+#                 mask = freq > 0
+#                 x_log = np.log10(freq[mask])
+#                 ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
+#                 all_x.extend(x_log)
+                
+#             if all_x:
+#                 x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
+#                 y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
+#                 ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
+                
+#             ax.set_xlabel(f"Log(Frequency)")
+#             ax.set_ylabel(f"Modulus (MPa)")
+            
+#             # --- CHANGE 1: New Title ---
+#             ax.set_title("Model Fitting")
+            
+#             # --- CHANGE 2: R² Score in Top Left ---
+#             # transform=ax.transAxes maps 0,0 to bottom-left and 1,1 to top-right
+#             ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
+#                     transform=ax.transAxes, 
+#                     verticalalignment='top', fontsize = 16)
+                 
+            
+#             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+#             add_watermark(ax)
+#             st.pyplot(fig)
+
+#             # 2. Save plot to a temporary buffer
+#             buf = io.BytesIO()
+#             fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+#             buf.seek(0)
+
+#             # 3. Layout: Spacer on left, Button on right
+#             buff_col, button_col = st.columns([5, 2]) 
+            
+#             with button_col:
+#                 st.download_button(
+#                     label="💾 Download Graph",
+#                     data=buf,
+#                     file_name="Curve Fitting plot.png",
+#                     mime="image/png",
+#                     use_container_width=True
+#                 )
+    
 def page_fitting():
     st.title("Step 3: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
@@ -391,6 +487,7 @@ def page_fitting():
         with col_graph: # Show error where graph would be
             st.error(f"Fit Failed: {e}")
         return
+
     # --- Right Column: Graph ---
     with col_graph:
         if st.session_state.fitted_params:
@@ -399,34 +496,41 @@ def page_fitting():
             fig = Figure(figsize=(10, 6))
             ax = fig.add_subplot(111)
             
-            all_x = []
+            all_x_log = [] # Store log values to calculate range
             shifts = st.session_state.analysis_shift_factors
+            
             for t in sorted(shifts):
                 sub = st.session_state.data[st.session_state.data['Temperature'] == t]
                 freq = sub['Frequency'] * shifts[t]
                 mask = freq > 0
-                x_log = np.log10(freq[mask])
-                ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
-                all_x.extend(x_log)
                 
-            if all_x:
-                x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
-                y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
-                ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
+                # --- CHANGE 1: Use semilogx with raw frequency ---
+                # We plot 'freq' (Hz) directly, not the log of it.
+                ax.semilogx(freq[mask], sub.loc[mask, 'Storage Modulus'], 'o', alpha=0.5, label=f"{t} °C")
                 
-            ax.set_xlabel(f"Log(Frequency)")
-            ax.set_ylabel(f"Modulus (MPa)")
-            
-            # --- CHANGE 1: New Title ---
+                # Keep tracking log values just to determine the min/max range for the red line
+                all_x_log.extend(np.log10(freq[mask]))
+                
+            if all_x_log:
+                # Create range in log space (for the math model)
+                x_rng_log = np.linspace(min(all_x_log)-0.5, max(all_x_log)+0.5, 500)
+                
+                # Calculate Y values using the model (model expects log inputs)
+                y_fit = storage_modulus_model(x_rng_log, params['a'], params['b'], params['c'], params['d'])
+                
+                # --- CHANGE 2: Convert X range back to Linear Hz for plotting ---
+                # We raise 10 to the power of the log-range to match the semilog axis
+                ax.semilogx(10**x_rng_log, y_fit, 'r-', lw=3, label="Model")
+                
+            # --- CHANGE 3: Update Labels ---
+            ax.set_xlabel("Frequency (Hz)")
+            ax.set_ylabel("Modulus (MPa)")
             ax.set_title("Model Fitting")
             
-            # --- CHANGE 2: R² Score in Top Left ---
-            # transform=ax.transAxes maps 0,0 to bottom-left and 1,1 to top-right
             ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
                     transform=ax.transAxes, 
                     verticalalignment='top', fontsize = 16)
-                 
-            
+                    
             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
             add_watermark(ax)
             st.pyplot(fig)
@@ -447,8 +551,6 @@ def page_fitting():
                     mime="image/png",
                     use_container_width=True
                 )
-    
-
 
 def page_params_per_temp():
     st.title("Step 4: Master Curve Parameters")
@@ -674,6 +776,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
