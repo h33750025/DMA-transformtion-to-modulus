@@ -698,6 +698,9 @@ def page_elastic_modulus():
     # --- 3. Visualization (Runs if Data Exists in Session State) ---
     if st.session_state.modulus_results_df is not None:
         df = st.session_state.modulus_results_df
+
+        # Check if we have negative values in the calculated Modulus columns (indices 1 to end)
+        has_negative_values = df.iloc[:, 1:].min().min() < 0
         
         # Global Plot Settings
         plt.rcParams["font.family"] = "serif"
@@ -714,7 +717,12 @@ def page_elastic_modulus():
             ax1.set_xscale('log')
             ax1.set_xlabel(r'Strain Rate ($s^{-1}$)')
             ax1.set_ylabel('Elastic Modulus (MPa)')
-            ax1.set_ylim(bottom=0)
+            
+            # --- CONDITIONAL LIMIT ---
+            if has_negative_values:
+                ax1.set_ylim(bottom=0)
+            # -------------------------
+            
             ax1.tick_params(axis='both', which='major')
             ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
             ax1.set_title('Modulus vs Strain Rate for Different Temperatures')
@@ -735,7 +743,10 @@ def page_elastic_modulus():
 
             ax2.set_xlabel('Temperature (°C)')
             ax2.set_ylabel('Elastic Modulus (MPa)')
-            ax2.set_ylim(bottom=0)
+            # --- CONDITIONAL LIMIT ---
+            if has_negative_values:
+                ax2.set_ylim(bottom=0)
+            # -------------------------
             ax2.set_title('Modulus vs Temperature for Different Strain Rates')
             ax2.tick_params(axis='both', which='major')
             ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
@@ -773,6 +784,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
