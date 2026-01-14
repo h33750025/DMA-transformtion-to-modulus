@@ -767,7 +767,7 @@ def page_elastic_modulus():
         st.info("Click 'Run Simulation' to start calculations.")
 
 # =================== strain stress curve ==========================================
-def page_elastic_modulus():
+def page_stress_strain_curve():
     st.title("Step 5: Stress vs Strain Prediction")
     st.markdown(r"Predicts **Stress ($\sigma$) vs Strain ($\epsilon$)** response for a **selected Temperature** and **Strain Rate**.")
 
@@ -947,7 +947,7 @@ def main():
         #"2. Master Curve": page_tts,#
         "2. Curve Fitting": page_fitting,
         "3. Params per Temp": page_params_per_temp,
-        "4. Stress-Strain Curve": page_elastic_modulus,
+        "4. Stress-Strain Curve": page_stress_strain_curve,
         "5. Elastic Modulus": page_elastic_modulus
     }
     
@@ -956,6 +956,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
