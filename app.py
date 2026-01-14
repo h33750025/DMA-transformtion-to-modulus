@@ -11,6 +11,7 @@ from sklearn.metrics import r2_score
 from colorsys import rgb_to_hls
 from matplotlib.lines import Line2D
 import io
+from scipy.integrate import simps
 # ==========================================
 # Configuration & Global Styles
 # ==========================================
@@ -66,20 +67,7 @@ def is_dark_color(hex_color):
     rgb = mcolors.hex2color(hex_color)
     h, l, s = rgb_to_hls(*rgb)
     return l < 0.5
-
-# def add_watermark(ax, text="NYU-ViscoMOD"):
-#     """Adds the watermark to a matplotlib axis, handling both 2D and 3D plots."""
-#     props = dict(
-#         fontsize=14, fontname="Times New Roman", color="purple",
-#         ha="right", va="bottom", alpha=0.5, transform=ax.transAxes
-#     )
     
-#     # Check if the axis is a 3D axis
-#     if hasattr(ax, 'text2D'):
-#         ax.text2D(0.99, 0.01, text, **props)
-#     else:
-#         ax.text(0.99, 0.01, text, **props)
-#################################################        
 def add_watermark(ax, text="NYU-ViscoMOD"):
     """Adds the watermark to a matplotlib axis, placing it outside the plot area."""
     props = dict(
@@ -99,6 +87,7 @@ def add_watermark(ax, text="NYU-ViscoMOD"):
         # y=-0.1 places it below the x-axis labels
         ax.text(1.0, -0.07, text, **props)
 ##########################################################       
+
 def storage_modulus_model(log_omega, a, b, c, d):
     """The hyperbolic tangent model for E'(w)."""
     return a * np.tanh(b * (log_omega + c)) + d
@@ -594,10 +583,10 @@ def page_params_per_temp():
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
 ## ======================================================================================    
+
 # def page_elastic_modulus():
 #     st.title("Step 5: Elastic Modulus vs Strain Rate")
-#     st.markdown("Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
-#     #strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
+#     st.markdown(r"Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     
 #     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
 #         return st.warning("Run Step 3 or 4 first.")
@@ -608,171 +597,274 @@ def page_params_per_temp():
 #     elif st.session_state.param_per_temp is not None:
 #          params = st.session_state.param_per_temp.iloc[0].to_dict()
     
-#     col_left, col_right = st.columns([1, 3])
+#     plt.rcParams["font.family"] = "serif"
+#     plt.rcParams["font.serif"] = ["Times New Roman"]
+#     # ---------------------------------------------
 
-#     # --- Left Column: Inputs & Table ---
-#     with col_left:
-#         try:
-#             rates_table = [float(x.strip()) for x in strain_rates.split(',')]
-#             rates_table = np.array(sorted(rates_table))
-#         except:
-#             rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01])
+#     fig = Figure(figsize=(10, 6))
+#     ax = fig.add_subplot(111)
+    
+#     plot_rates = np.logspace(-5, -2, 500)
+#     plot_log_rates = np.log10(plot_rates)
+    
+#     # --- 1. Initialize Dictionary to store Data for CSV ---
+#     csv_data = {"Strain Rate (1/s)": plot_rates}
+    
+#     darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
+    
+#     if st.session_state.param_per_temp is not None:
+#         df_params = st.session_state.param_per_temp
+#         for i, row in df_params.iterrows():
+#             t = row['Temperature']
+#             E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
+            
+#             # Store data for this temperature
+#             csv_data[f"E @ {t}C (MPa)"] = E_curve
+            
+#             color = darker[i % len(darker)]
+#             ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+#     else:
+#         shifts = st.session_state.analysis_shift_factors
+#         for i, t in enumerate(sorted(shifts.keys())):
+#             sf = shifts[t]
+#             c_temp = params['c'] + np.log10(sf)
+#             E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
+            
+#             # Store data for this temperature
+#             csv_data[f"E @ {t}C (MPa)"] = E_curve
+            
+#             color = darker[i % len(darker)]
+#             ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
 
-#         log_rates = np.log10(rates_table)
-#         E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
-        
-#         res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
-#         #st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
-#         st.dataframe(res_df, hide_index=True)
-#     # --- Right Column: Graph & Download ---
-#     with col_right:
-#         # --- NEW CODE: Set Font to Times New Roman ---
-#         import matplotlib.pyplot as plt
-#         plt.rcParams["font.family"] = "serif"
-#         plt.rcParams["font.serif"] = ["Times New Roman"]
-#         # ---------------------------------------------
+#     ax.set_xlabel("Strain Rate ($s^{-1}$)")
+#     ax.set_ylabel("Elastic Modulus (MPa)")
+#     ax.set_ylim(bottom=0)
+#     ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
+#     ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+#     add_watermark(ax)
+#     st.pyplot(fig)
+    
+#     # --- Prepare Downloads ---
+#     # 1. Image Buffer
+#     buf = io.BytesIO()
+#     fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+#     buf.seek(0)
+    
+#     # 2. CSV Buffer (Create DataFrame from the stored dictionary)
+#     df_export = pd.DataFrame(csv_data)
+#     csv_buf = df_export.to_csv(index=False).encode('utf-8')
 
-#         fig = Figure(figsize=(10, 6))
-#         ax = fig.add_subplot(111)
+#     # 3. Layout: Two buttons side-by-side (CSV Left, Image Right)
+#     # Ratio [4, 2, 2] pushes buttons to the right side
+#     buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
+    
+#     with csv_col:
+#         st.download_button(
+#             label="📄 Download CSV",
+#             data=csv_buf,
+#             file_name="Elastic_Modulus_Data.csv",
+#             mime="text/csv",
+#             use_container_width=True
+#         )
         
-#         plot_rates = np.logspace(-5, -2, 500)
-#         plot_log_rates = np.log10(plot_rates)
+#     with img_col:
+#         st.download_button(
+#             label="💾 Download Graph",
+#             data=buf,
+#             file_name="Elastic Modulus plot.png",
+#             mime="image/png",
+#             use_container_width=True
+#         )
         
-#         darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
-        
-#         if st.session_state.param_per_temp is not None:
-#             df_params = st.session_state.param_per_temp
-#             for i, row in df_params.iterrows():
-#                 t = row['Temperature']
-#                 E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
-                
-#                 color = darker[i % len(darker)]
-#                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
-#         else:
-#             shifts = st.session_state.analysis_shift_factors
-#             for i, t in enumerate(sorted(shifts.keys())):
-#                 sf = shifts[t]
-#                 c_temp = params['c'] + np.log10(sf)
-#                 E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
-#                 color = darker[i % len(darker)]
-#                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+#=================================================
 
-#         ax.set_xlabel("Strain Rate ($s^{-1}$)")
-#         ax.set_ylabel("Elastic Modulus (MPa)")
-#         ax.set_ylim(bottom=0)
-#         ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
-#         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
-#         add_watermark(ax)
-#         st.pyplot(fig)
-        
-#         # 2. Save plot to a temporary buffer
-#         buf = io.BytesIO()
-#         fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
-#         buf.seek(0)
 
-#         # 3. Layout: Spacer on left, Button on right
-#         # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
-#         buff_col, button_col = st.columns([5, 2]) 
-        
-#         with button_col:
-#             st.download_button(
-#                 label="💾 Download Graph",
-#                 data=buf,
-#                 file_name="Elastic Modulus plot.png",
-#                 mime="image/png",
-#                 use_container_width=True # Makes the button fill the column width
-#             )
-## =================================================================================
 def page_elastic_modulus():
-    st.title("Step 5: Elastic Modulus vs Strain Rate")
-    st.markdown(r"Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
-    
-    if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
-        return st.warning("Run Step 3 or 4 first.")
-    
-    # --- Logic Pre-calculation ---
-    if st.session_state.fitted_params:
-        params = st.session_state.fitted_params
-    elif st.session_state.param_per_temp is not None:
-         params = st.session_state.param_per_temp.iloc[0].to_dict()
-    
-    #col_left, col_right = st.columns([1, 3])
+    st.title("Step 5: Stress vs Strain Prediction")
+    st.markdown(r"Predicts **Stress ($\sigma$) vs Strain ($\epsilon$)** response at a specific temperature using numerical integration of the Master Curve.")
 
-    # --- Left Column: Cleared (Table Removed) ---
-    # with col_left:
-    #     # Kept empty as requested, but maintaining layout structure
-    #     st.write("") 
+    # --- Check Prerequisites ---
+    if st.session_state.fitted_params is None: 
+        return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
 
-    # # --- Right Column: Graph & Download ---
-    # with col_right:
-    #     # --- NEW CODE: Set Font to Times New Roman ---
-    import matplotlib.pyplot as plt
+    # --- 1. User Inputs ---
+    col_input, col_calc = st.columns([1, 2])
+    
+    with col_input:
+        st.markdown("### Simulation Settings")
+        
+        # A. Select Temperature
+        # We need to know which shift factor or parameter set to use
+        avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+        selected_temp = st.selectbox("Select Temperature (°C)", avail_temps, index=0)
+        
+        # B. Strain Rates
+        default_rates = "1e-5, 1e-4, 1e-3, 1e-2"
+        rates_str = st.text_input("Strain Rates (1/s, comma separated)", default_rates)
+        
+        try:
+            strain_rates_to_plot = [float(x.strip()) for x in rates_str.split(',')]
+        except:
+            st.error("Invalid strain rates format.")
+            return
+
+        # C. Max Strain
+        strain_max = st.number_input("Max Strain", value=0.0025, format="%.4f")
+        
+        run_sim = st.button("Run Simulation", type="primary")
+
+    if not run_sim:
+        st.info("Select parameters and click 'Run Simulation'. (Note: This calculation may take a few seconds)")
+        return
+
+    # --- 2. Prepare Parameters for Selected Temperature ---
+    # We need A, B, C, D. 
+    # If "Params per Temp" (Step 4) was run, we use those specific fits.
+    # Otherwise, we use the Master Curve fit shifted to the selected temperature.
+    
+    params = {}
+    if st.session_state.param_per_temp is not None:
+        # Use specific fit for this temp if available
+        row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == selected_temp]
+        if not row.empty:
+            params = row.iloc[0].to_dict()
+    
+    # Fallback to Master Curve + Shift Factor
+    if not params:
+        master = st.session_state.fitted_params
+        sf = st.session_state.analysis_shift_factors.get(selected_temp, 1.0)
+        params = master.copy()
+        # Shift 'c' parameter: c_temp = c_master + log10(aT)
+        params['c'] = master['c'] + np.log10(sf)
+
+    # --- 3. Define Calculation Functions (Local Scope) ---
+    # Using the exact logic provided in your scheme
+    
+    A, B, C, D = params['a'], params['b'], params['c'], params['d']
+
+    def E_prime(w):
+        # NOTE: The original app used log10 for fitting. 
+        # Your snippet used np.log (ln). We must use np.log10 to match the fitted parameters 
+        # A, B, C, D, otherwise the curve will be shifted/distorted.
+        return A * np.tanh(B * (np.log10(w) + C)) + D
+
+    def Etime_time_cycle(time_arr, cycle=500):
+        N1, N2, N3 = 240, 74, 24
+        Etime = np.zeros_like(time_arr)
+
+        def integrand(t, E_prime_w, w):
+            return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
+
+        # Progress bar for the inner loop
+        progress_text = "Integrating Time Steps..."
+        my_bar = st.progress(0, text=progress_text)
+        total_steps = len(time_arr)
+
+        for i, t in enumerate(time_arr):
+            # Update progress every 10%
+            if i % (max(1, total_steps // 10)) == 0:
+                my_bar.progress(int(i / total_steps * 100), text=f"Processing time step {i}/{total_steps}")
+
+            if t == 0: 
+                continue # Avoid division by zero
+                
+            w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
+            w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
+            w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
+
+            all_w = np.concatenate([w1, w2[1:], w3[1:]])
+            y = integrand(t, E_prime(all_w), all_w)
+            
+            # Trapezoidal integration for E(t)
+            Etime[i] = np.trapz(y, all_w)
+            
+        my_bar.empty()
+        return Etime
+
+    # --- 4. Main Calculation Loop ---
+    strain_min = 1e-25
+    num_steps = 500
+    results_data = {} # For CSV
+    
+    # Setup Plot
+    # Force Times New Roman
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["font.serif"] = ["Times New Roman"]
-    # ---------------------------------------------
-
-    fig = Figure(figsize=(10, 6))
+    
+    fig = Figure(figsize=(10, 7))
     ax = fig.add_subplot(111)
     
-    plot_rates = np.logspace(-5, -2, 500)
-    plot_log_rates = np.log10(plot_rates)
+    colors = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
     
-    # --- 1. Initialize Dictionary to store Data for CSV ---
-    csv_data = {"Strain Rate (1/s)": plot_rates}
-    
-    darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
-    
-    if st.session_state.param_per_temp is not None:
-        df_params = st.session_state.param_per_temp
-        for i, row in df_params.iterrows():
-            t = row['Temperature']
-            E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
+    with st.spinner(f"Calculating Stress-Strain curves for {selected_temp} °C..."):
+        for idx, rate in enumerate(strain_rates_to_plot):
+            # Time range
+            time_min_rate = strain_min / rate
+            time_max_rate = strain_max / rate
+            time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
             
-            # Store data for this temperature
-            csv_data[f"E @ {t}C (MPa)"] = E_curve
+            # Calculate E(t)
+            E_t = Etime_time_cycle(time_range_rate, cycle=500)
             
-            color = darker[i % len(darker)]
-            ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
-    else:
-        shifts = st.session_state.analysis_shift_factors
-        for i, t in enumerate(sorted(shifts.keys())):
-            sf = shifts[t]
-            c_temp = params['c'] + np.log10(sf)
-            E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
+            # Calculate Stress History
+            Stress_history_rate = E_t / 2 * rate
             
-            # Store data for this temperature
-            csv_data[f"E @ {t}C (MPa)"] = E_curve
+            # Cumulative Integral for Stress
+            # using scipy.integrate.simps
+            stress_vals = []
+            for i in range(len(time_range_rate)):
+                if i == 0:
+                    stress_vals.append(0)
+                else:
+                    val = simps(Stress_history_rate[:i+1], time_range_rate[:i+1])
+                    stress_vals.append(val)
             
-            color = darker[i % len(darker)]
-            ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+            cumulative_integral = np.array(stress_vals)
+            strain_range_rate = time_range_rate * rate
+            
+            # Add to Plot
+            color = colors[idx % len(colors)]
+            ax.plot(strain_range_rate, cumulative_integral, label=f'Rate = {rate} 1/s', color=color, linewidth=2)
+            
+            # Add to Data Dictionary for CSV
+            results_data[f"Strain_Rate_{rate}"] = strain_range_rate
+            results_data[f"Stress_Rate_{rate} (MPa)"] = cumulative_integral
 
-    ax.set_xlabel("Strain Rate ($s^{-1}$)")
-    ax.set_ylabel("Elastic Modulus (MPa)")
+    # --- 5. Finalize Plot ---
+    ax.set_xlabel("Strain (1)", fontsize=16)
+    ax.set_ylabel("Stress (MPa)", fontsize=16)
+    ax.set_title(f"Stress vs Strain at {selected_temp} °C", fontsize=18)
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    
+    # Force Y-axis to 0
     ax.set_ylim(bottom=0)
-    ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
-    ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+    ax.set_xlim(left=0)
+    
+    ax.legend(fontsize=12, loc='best')
+    ax.grid(True, which="both", ls="--", alpha=0.4)
     add_watermark(ax)
+    
+    # --- 6. Output & Downloads ---
     st.pyplot(fig)
     
-    # --- Prepare Downloads ---
-    # 1. Image Buffer
+    # Prepare Buffers
+    # Image
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
     buf.seek(0)
     
-    # 2. CSV Buffer (Create DataFrame from the stored dictionary)
-    df_export = pd.DataFrame(csv_data)
+    # CSV (Pad arrays with NaN if lengths differ, though here they are all num_steps)
+    df_export = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in results_data.items() ]))
     csv_buf = df_export.to_csv(index=False).encode('utf-8')
 
-    # 3. Layout: Two buttons side-by-side (CSV Left, Image Right)
-    # Ratio [4, 2, 2] pushes buttons to the right side
+    # Layout Buttons
     buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
     
     with csv_col:
         st.download_button(
             label="📄 Download CSV",
             data=csv_buf,
-            file_name="Elastic_Modulus_Data.csv",
+            file_name=f"Stress_Strain_{selected_temp}C.csv",
             mime="text/csv",
             use_container_width=True
         )
@@ -781,11 +873,12 @@ def page_elastic_modulus():
         st.download_button(
             label="💾 Download Graph",
             data=buf,
-            file_name="Elastic Modulus plot.png",
+            file_name=f"Stress_Strain_{selected_temp}C.png",
             mime="image/png",
             use_container_width=True
         )
-            
+
+
 # ==========================================
 # Main Navigation
 # ==========================================
@@ -805,6 +898,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
