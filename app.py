@@ -67,19 +67,38 @@ def is_dark_color(hex_color):
     h, l, s = rgb_to_hls(*rgb)
     return l < 0.5
 
+# def add_watermark(ax, text="NYU-ViscoMOD"):
+#     """Adds the watermark to a matplotlib axis, handling both 2D and 3D plots."""
+#     props = dict(
+#         fontsize=14, fontname="Times New Roman", color="purple",
+#         ha="right", va="bottom", alpha=0.5, transform=ax.transAxes
+#     )
+    
+#     # Check if the axis is a 3D axis
+#     if hasattr(ax, 'text2D'):
+#         ax.text2D(0.99, 0.01, text, **props)
+#     else:
+#         ax.text(0.99, 0.01, text, **props)
+#################################################        
 def add_watermark(ax, text="NYU-ViscoMOD"):
-    """Adds the watermark to a matplotlib axis, handling both 2D and 3D plots."""
+    """Adds the watermark to a matplotlib axis, placing it outside the plot area."""
     props = dict(
         fontsize=14, fontname="Times New Roman", color="purple",
-        ha="right", va="bottom", alpha=0.5, transform=ax.transAxes
+        ha="right", va="top", alpha=0.5, transform=ax.transAxes
     )
     
     # Check if the axis is a 3D axis
     if hasattr(ax, 'text2D'):
-        ax.text2D(0.99, 0.01, text, **props)
+        # For 3D plots, placing it outside can be tricky due to rotation.
+        # It is often safer to keep it slightly inside or anchor it to the figure corner.
+        # This setting puts it at the bottom right corner of the drawing canvas.
+        ax.text2D(0.99, -0.05, text, **props)
     else:
-        ax.text(0.99, 0.01, text, **props)
-
+        # For 2D plots:
+        # x=1.0 aligns with the right edge of the axis
+        # y=-0.1 places it below the x-axis labels
+        ax.text(1.0, -0.15, text, **props)
+##########################################################       
 def storage_modulus_model(log_omega, a, b, c, d):
     """The hyperbolic tangent model for E'(w)."""
     return a * np.tanh(b * (log_omega + c)) + d
@@ -678,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
