@@ -986,7 +986,7 @@ def page_elastic_modulus():
         plt.rcParams["font.family"] = "serif"
         plt.rcParams["font.serif"] = ["Times New Roman"]
         
-        tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
+        tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Strain Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
 
         with tab1:
             fig1 = Figure(figsize=(10, 6))
@@ -995,13 +995,13 @@ def page_elastic_modulus():
                 ax1.plot(strain_rates_to_plot, row[1:], label=f"{row['Ref Temp (°C)']}°C")
 
             ax1.set_xscale('log')
-            ax1.set_xlabel('Strain Rate (1/s)', fontsize=20)
-            ax1.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+            ax1.set_xlabel(r'Strain Rate ($s^{-1}$)')
+            ax1.set_ylabel('Elastic Modulus (MPa)')
             ax1.set_ylim(bottom=0)
-            ax1.tick_params(axis='both', which='major', labelsize=14)
+            ax1.tick_params(axis='both', which='major')
             ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
-            ax1.set_title('Modulus vs Strain Rate for Different Temperatures', fontsize=20)
-            ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+            ax1.set_title('Modulus vs Strain Rate for Different Temperatures')
+            ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
             add_watermark(ax1)
             st.pyplot(fig1)
             
@@ -1056,6 +1056,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
