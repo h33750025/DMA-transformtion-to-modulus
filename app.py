@@ -172,7 +172,7 @@ def page_load_and_visualize():
                     
                     try:
                         Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
-                        fig = Figure(figsize=(10, 6))
+                        fig = Figure(figsize=(10, 7))
                         ax = fig.add_subplot(111, projection='3d')
                         surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
                         
@@ -247,7 +247,7 @@ def page_load_and_visualize():
             x_grid, y_grid = np.meshgrid(np.linspace(X.max(), X.min(), 100), np.linspace(Y.min(), Y.max(), 100))
             try:
                 Z_grid = griddata((X, Y), Z, (x_grid, y_grid), method='cubic')
-                fig = Figure(figsize=(10, 6))
+                fig = Figure(figsize=(10, 7))
                 ax = fig.add_subplot(111, projection='3d')
                 surf = ax.plot_surface(x_grid, y_grid, Z_grid, cmap='rainbow', edgecolor='none', alpha=0.8)
                 ax.set_xlabel('Temperature (°C)'); ax.set_ylabel('Frequency (Hz)'); ax.set_zlabel('Modulus (MPa)')
@@ -776,6 +776,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
