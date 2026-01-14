@@ -592,7 +592,7 @@ def page_params_per_temp():
 def page_elastic_modulus():
     st.title("Step 5: Elastic Modulus vs Strain Rate")
     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
-    strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
+    #strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
     
     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
         return st.warning("Run Step 3 or 4 first.")
@@ -617,8 +617,8 @@ def page_elastic_modulus():
         E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
         
         res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
-        st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
-
+        #st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
+        st.dataframe(res_df, hide_index=True)
     # --- Right Column: Graph & Download ---
     with col_right:
         # --- NEW CODE: Set Font to Times New Roman ---
@@ -697,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
