@@ -92,12 +92,12 @@ def add_watermark(ax, text="NYU-ViscoMOD"):
         # For 3D plots, placing it outside can be tricky due to rotation.
         # It is often safer to keep it slightly inside or anchor it to the figure corner.
         # This setting puts it at the bottom right corner of the drawing canvas.
-        ax.text2D(0.99, -0.005, text, **props)
+        ax.text2D(0.99, -0.01, text, **props)
     else:
         # For 2D plots:
         # x=1.0 aligns with the right edge of the axis
         # y=-0.1 places it below the x-axis labels
-        ax.text(1.0, -0.05, text, **props)
+        ax.text(1.1, -0.05, text, **props)
 ##########################################################       
 def storage_modulus_model(log_omega, a, b, c, d):
     """The hyperbolic tangent model for E'(w)."""
@@ -697,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
