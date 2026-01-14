@@ -297,7 +297,7 @@ def page_tts():
     st.title("Step 2: TTS Analysis")
     if st.session_state.data is None: return st.warning("No data loaded.")
     
-    if st.button("Run Auto-Shift"):
+    if st.button("Run Analysis"):
         data = st.session_state.data
         ref_temp = min(data["Temperature"].unique())
         extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
@@ -373,8 +373,9 @@ def page_tts():
 def page_fitting():
     st.title("Step 3: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
-    st.markdown("Define upper limits for parameters $A$ and $D$ in the model:")
-    st.latex(r"E'(\omega) = A \tanh(B \log(\omega) + C) + D") #
+    # Use a single st.markdown call with inline LaTeX ($...$)
+    st.markdown(r"Define upper limits for parameters $A$ and $D$ in the model: $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
+ 
     
     # Create Layout: Left for controls (smaller), Right for graph (larger)
     col_controls, col_graph = st.columns([1, 3])
@@ -701,6 +702,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
