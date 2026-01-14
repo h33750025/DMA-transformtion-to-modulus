@@ -365,32 +365,36 @@ def page_fitting():
     # Use a single st.markdown call with inline LaTeX ($...$)
     st.markdown(r"Curve fitting function used:  $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
     st.info(r"Adjust the fitting bounds A and D to fit the master curve, check the $R^2$ score for reference.")
-    #############################################
-    if st.button("Run Analysis"):
-        data = st.session_state.data
-        ref_temp = min(data["Temperature"].unique())
-        extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
-        shift_factors = {ref_temp: 1.0}
-        
-        for temp in sorted([t for t in data["Temperature"].unique() if t > ref_temp]):
-            df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
-            max_freq = df_temp["Frequency"].max()
-            mod_at_max = df_temp.iloc[-1]["Storage Modulus"]
+ 
+    # --- AUTOMATED ANALYSIS (Previously Button) ---
+    # Runs automatically if master_curve_data is missing, or recalculates if needed.
+    # We check session state to avoid re-calculating on every slider movement (performance fix).
+    if "master_curve_data" not in st.session_state or st.session_state.master_curve_data is None:
+        with st.spinner("Processing Master Curve..."):
+            data = st.session_state.data
+            ref_temp = min(data["Temperature"].unique())
+            extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
+            shift_factors = {ref_temp: 1.0}
             
-            # Find overlap match
-            idx = (extended["Storage Modulus"] - mod_at_max).abs().idxmin()
-            match_freq = extended.loc[idx, "Frequency"]
+            for temp in sorted([t for t in data["Temperature"].unique() if t > ref_temp]):
+                df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
+                max_freq = df_temp["Frequency"].max()
+                mod_at_max = df_temp.iloc[-1]["Storage Modulus"]
+                
+                # Find overlap match
+                idx = (extended["Storage Modulus"] - mod_at_max).abs().idxmin()
+                match_freq = extended.loc[idx, "Frequency"]
+                
+                sf = match_freq / max_freq
+                shift_factors[temp] = sf
+                
+                shifted = df_temp.copy()
+                shifted["Frequency"] *= sf
+                extended = pd.concat([extended, shifted], ignore_index=True).sort_values("Frequency")
             
-            sf = match_freq / max_freq
-            shift_factors[temp] = sf
-            
-            shifted = df_temp.copy()
-            shifted["Frequency"] *= sf
-            extended = pd.concat([extended, shifted], ignore_index=True).sort_values("Frequency")
-            
-        st.session_state.analysis_shift_factors = shift_factors
-        st.session_state.master_curve_data = extended
-        st.success("Complete")
+            # Update Session State
+            st.session_state.analysis_shift_factors = shift_factors
+            st.session_state.master_curve_data = extended
     ######################################################
     if st.session_state.master_curve_data is not None:
         shifts = st.session_state.analysis_shift_factors
@@ -985,6 +989,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
