@@ -369,7 +369,7 @@ def page_tts():
                     mime="image/png",
                     use_container_width=True # Makes the button fill the column width
                 )
-    
+###############################################################
 def page_fitting():
     st.title("Step 3: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
@@ -380,6 +380,11 @@ def page_fitting():
     # --- Left Column: Sliders ---
     with col_controls:
         st.markdown("### Fit Bounds")
+        # --- ADDED DESCRIPTION & EQUATION ---
+        st.markdown("Define upper limits for parameters $A$ and $D$ in the model:")
+        st.latex(r"E'(\omega) = A \tanh(B \log(\omega) + C) + D") #
+        # ------------------------------------
+
         # Real-time fitting sliders using Global Defaults
         a_high = st.slider("Upper Bound 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
         d_high = st.slider("Upper Bound 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
@@ -474,6 +479,7 @@ def page_fitting():
                     use_container_width=True
                 )
 
+#########################################################
 def page_params_per_temp():
     st.title("Step 4: Master Curve Parameters")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
@@ -697,6 +703,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
