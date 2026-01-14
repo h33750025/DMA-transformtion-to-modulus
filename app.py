@@ -283,7 +283,7 @@ def page_load_and_visualize():
 
 
 def page_tts():
-    st.title("Step 2: TTS Analysis")
+    st.title("Step 2: Master Curve")
     if st.session_state.data is None: return st.warning("No data loaded.")
     
     if st.button("Run Analysis"):
@@ -310,54 +310,54 @@ def page_tts():
             
         st.session_state.analysis_shift_factors = shift_factors
         st.session_state.master_curve_data = extended
-        st.success("TTS Complete")
+        st.success("Complete")
         
     if st.session_state.master_curve_data is not None:
         shifts = st.session_state.analysis_shift_factors
         
-        col1, col2 = st.columns([1, 3])
+        #col1, col2 = st.columns([1, 3])
         
-        with col1:
-            st.write("### Shift Factors")
-            sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
-            df_sf = pd.DataFrame(sf_list)
-            st.dataframe(df_sf, height=300, hide_index=True)
+        # with col1:
+        #     st.write("### Shift Factors")
+        #     sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
+        #     df_sf = pd.DataFrame(sf_list)
+        #     st.dataframe(df_sf, height=300, hide_index=True)
             
-        with col2:
-            fig = Figure(figsize=(10, 6))
-            ax = fig.add_subplot(111)
+        #with col2:
+        fig = Figure(figsize=(10, 6))
+        ax = fig.add_subplot(111)
+        
+        for t in sorted(shifts.keys()):
+            sf = shifts[t]
+            sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+            ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
             
-            for t in sorted(shifts.keys()):
-                sf = shifts[t]
-                sub = st.session_state.data[st.session_state.data['Temperature'] == t]
-                ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
-                
-            ax.set_xlabel("Frequency (Hz)")
-            ax.set_ylabel("Storage Modulus (MPa)")
-            ax.set_title("Master Curve")
-            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-            add_watermark(ax)
-            
-            # 1. Show the plot
-            st.pyplot(fig)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Storage Modulus (MPa)")
+        ax.set_title("Master Curve")
+        ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+        add_watermark(ax)
+        
+        # 1. Show the plot
+        st.pyplot(fig)
 
-            # 2. Save plot to a temporary buffer
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
-            buf.seek(0)
+        # 2. Save plot to a temporary buffer
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+        buf.seek(0)
 
-            # 3. Layout: Spacer on left, Button on right
-            # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
-            buff_col, button_col = st.columns([5, 2]) 
-            
-            with button_col:
-                st.download_button(
-                    label="💾 Download Graph",
-                    data=buf,
-                    file_name="master_curve.png",
-                    mime="image/png",
-                    use_container_width=True # Makes the button fill the column width
-                )
+        # 3. Layout: Spacer on left, Button on right
+        # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+        buff_col, button_col = st.columns([5, 2]) 
+        
+        with button_col:
+            st.download_button(
+                label="💾 Download Graph",
+                data=buf,
+                file_name="master_curve.png",
+                mime="image/png",
+                use_container_width=True # Makes the button fill the column width
+            )
 ###############################################################
 def page_fitting():
     st.title("Step 3: Curve Fitting")
@@ -785,76 +785,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
