@@ -11,7 +11,7 @@ from sklearn.metrics import r2_score
 from colorsys import rgb_to_hls
 from matplotlib.lines import Line2D
 import io
-from scipy.integrate import simpson
+from scipy.integrate import simps
 # ==========================================
 # Configuration & Global Styles
 # ==========================================
@@ -816,7 +816,7 @@ def page_elastic_modulus():
                 if i == 0:
                     stress_vals.append(0)
                 else:
-                    val = simpson(Stress_history_rate[:i+1], time_range_rate[:i+1])
+                    val = simps(Stress_history_rate[:i+1], time_range_rate[:i+1])
                     stress_vals.append(val)
             
             cumulative_integral = np.array(stress_vals)
@@ -898,6 +898,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
