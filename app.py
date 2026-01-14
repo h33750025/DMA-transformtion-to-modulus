@@ -478,8 +478,7 @@ def page_params_per_temp():
     st.title("Step 4: Master Curve Parameters")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     
-    st.markdown("Please check each fittd curves, if they are not align properly, 
-    adjust the fitting bounds for parameters a and b until the fitted curves align with the corresponding master curves at each temperature.")
+    st.markdown("Please check each fittd curves, if they are not align properly, adjust the fitting bounds for parameters a and b until the fitted curves align with the corresponding master curves at each temperature.")
   
     col_ctrl, col_graph = st.columns([1, 3])
     with col_ctrl:
@@ -698,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
