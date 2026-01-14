@@ -350,103 +350,6 @@ def page_tts():
                     mime="image/png",
                     use_container_width=True # Makes the button fill the column width
                 )
-
-
-# def page_fitting():
-#     st.title("Step 3: Curve Fitting")
-#     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
-    
-#     # Create Layout: Left for controls (smaller), Right for graph (larger)
-#     col_controls, col_graph = st.columns([1, 3])
-    
-#     # --- Left Column: Sliders ---
-#     with col_controls:
-#         st.markdown("### Parameters")
-#         # Real-time fitting sliders using Global Defaults
-#         a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
-#         d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
-        
-#         # Update Global State
-#         st.session_state.global_a_upper = a_high
-#         st.session_state.global_d_upper = d_high
-    
-#     # --- Data Processing & Fitting (Runs in background) ---
-#     data, shifts = st.session_state.data, st.session_state.analysis_shift_factors
-#     x_all, y_all = [], []
-    
-#     for t, sf in shifts.items():
-#         sub = data[data['Temperature'] == t]
-#         valid = sub[sub['Frequency'] > 0]
-#         x_all.extend(np.log10(valid['Frequency'] * sf))
-#         y_all.extend(valid['Storage Modulus'])
-        
-#     try:
-#         popt, _ = curve_fit(storage_modulus_model, x_all, y_all, 
-#                           bounds=([1e-6, -100, -100, 1e-6], [a_high, 100, 100, d_high]), maxfev=100000)
-        
-#         params = {'a': popt[0], 'b': popt[1], 'c': popt[2], 'd': popt[3]}
-#         params['r2'] = r2_score(y_all, storage_modulus_model(x_all, *popt))
-#         st.session_state.fitted_params = params
-#     except Exception as e:
-#         with col_graph: # Show error where graph would be
-#             st.error(f"Fit Failed: {e}")
-#         return
-#     # --- Right Column: Graph ---
-#     with col_graph:
-#         if st.session_state.fitted_params:
-#             params = st.session_state.fitted_params
-            
-#             fig = Figure(figsize=(10, 6))
-#             ax = fig.add_subplot(111)
-            
-#             all_x = []
-#             shifts = st.session_state.analysis_shift_factors
-#             for t in sorted(shifts):
-#                 sub = st.session_state.data[st.session_state.data['Temperature'] == t]
-#                 freq = sub['Frequency'] * shifts[t]
-#                 mask = freq > 0
-#                 x_log = np.log10(freq[mask])
-#                 ax.scatter(x_log, sub.loc[mask, 'Storage Modulus'], alpha=0.5, label=f"{t} °C")
-#                 all_x.extend(x_log)
-                
-#             if all_x:
-#                 x_rng = np.linspace(min(all_x)-0.5, max(all_x)+0.5, 500)
-#                 y_fit = storage_modulus_model(x_rng, params['a'], params['b'], params['c'], params['d'])
-#                 ax.plot(x_rng, y_fit, 'r-', lw=3, label="Model")
-                
-#             ax.set_xlabel(f"Log(Frequency)")
-#             ax.set_ylabel(f"Modulus (MPa)")
-            
-#             # --- CHANGE 1: New Title ---
-#             ax.set_title("Model Fitting")
-            
-#             # --- CHANGE 2: R² Score in Top Left ---
-#             # transform=ax.transAxes maps 0,0 to bottom-left and 1,1 to top-right
-#             ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
-#                     transform=ax.transAxes, 
-#                     verticalalignment='top', fontsize = 16)
-                 
-            
-#             ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-#             add_watermark(ax)
-#             st.pyplot(fig)
-
-#             # 2. Save plot to a temporary buffer
-#             buf = io.BytesIO()
-#             fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
-#             buf.seek(0)
-
-#             # 3. Layout: Spacer on left, Button on right
-#             buff_col, button_col = st.columns([5, 2]) 
-            
-#             with button_col:
-#                 st.download_button(
-#                     label="💾 Download Graph",
-#                     data=buf,
-#                     file_name="Curve Fitting plot.png",
-#                     mime="image/png",
-#                     use_container_width=True
-#                 )
     
 def page_fitting():
     st.title("Step 3: Curve Fitting")
@@ -667,77 +570,6 @@ def page_params_per_temp():
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
     
-#############################################
-# def page_elastic_modulus():
-#     st.title("Step 5: Elastic Modulus vs Strain Rate")
-#     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
-#     strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
-#     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
-#         return st.warning("Run Step 3 or 4 first.")
-    
-#     # --- Logic Pre-calculation (Needed for both columns) ---
-#     # Determine 'params' here so it is available for both the Table (left) and Graph (right)
-#     if st.session_state.fitted_params:
-#         params = st.session_state.fitted_params
-#     elif st.session_state.param_per_temp is not None:
-#          params = st.session_state.param_per_temp.iloc[0].to_dict()
-    
-#     # --- Create Layout: 1:3 Ratio ---
-#     col_left, col_right = st.columns([1, 3])
-
-#     # --- Left Column: Inputs & Table ---
-#     with col_left:
-        
-#         try:
-#             rates_table = [float(x.strip()) for x in strain_rates.split(',')]
-#             rates_table = np.array(sorted(rates_table))
-#         except:
-#             rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01])
-
-#         # Table calculation 
-#         log_rates = np.log10(rates_table)
-#         E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
-        
-#         res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
-#         st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
-
-#     # --- Right Column: Graph & Download ---
-#     with col_right:
-#         # Plot ALL Temperatures
-#         fig = Figure(figsize=(10, 6))
-#         ax = fig.add_subplot(111)
-        
-#         plot_rates = np.logspace(-5, -2, 500)
-#         plot_log_rates = np.log10(plot_rates)
-        
-#         darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
-        
-#         # Use explicit parameters if available from Step 6, otherwise derive from TTS
-#         if st.session_state.param_per_temp is not None:
-#             df_params = st.session_state.param_per_temp
-#             for i, row in df_params.iterrows():
-#                 t = row['Temperature']
-#                 E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
-                
-#                 color = darker[i % len(darker)]
-#                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
-#         else:
-#             # Fallback to Step 5 params + Shift Factors
-#             shifts = st.session_state.analysis_shift_factors
-#             for i, t in enumerate(sorted(shifts.keys())):
-#                 sf = shifts[t]
-#                 c_temp = params['c'] + np.log10(sf)
-#                 E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
-#                 color = darker[i % len(darker)]
-#                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
-
-#         ax.set_xlabel("Strain Rate ($s^{-1}$)")
-#         ax.set_ylabel("Elastic Modulus (MPa)")
-#         ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
-#         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
-#         add_watermark(ax)
-#         st.pyplot(fig)
-################################
 def page_elastic_modulus():
     st.title("Step 5: Elastic Modulus vs Strain Rate")
     st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
@@ -846,6 +678,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
