@@ -593,11 +593,99 @@ def page_params_per_temp():
         
     df_res = pd.DataFrame(results)
     st.session_state.param_per_temp = df_res
+## ======================================================================================    
+# def page_elastic_modulus():
+#     st.title("Step 5: Elastic Modulus vs Strain Rate")
+#     st.markdown("Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
+#     #strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
     
+#     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
+#         return st.warning("Run Step 3 or 4 first.")
+    
+#     # --- Logic Pre-calculation ---
+#     if st.session_state.fitted_params:
+#         params = st.session_state.fitted_params
+#     elif st.session_state.param_per_temp is not None:
+#          params = st.session_state.param_per_temp.iloc[0].to_dict()
+    
+#     col_left, col_right = st.columns([1, 3])
+
+#     # --- Left Column: Inputs & Table ---
+#     with col_left:
+#         try:
+#             rates_table = [float(x.strip()) for x in strain_rates.split(',')]
+#             rates_table = np.array(sorted(rates_table))
+#         except:
+#             rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01])
+
+#         log_rates = np.log10(rates_table)
+#         E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
+        
+#         res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
+#         #st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
+#         st.dataframe(res_df, hide_index=True)
+#     # --- Right Column: Graph & Download ---
+#     with col_right:
+#         # --- NEW CODE: Set Font to Times New Roman ---
+#         import matplotlib.pyplot as plt
+#         plt.rcParams["font.family"] = "serif"
+#         plt.rcParams["font.serif"] = ["Times New Roman"]
+#         # ---------------------------------------------
+
+#         fig = Figure(figsize=(10, 6))
+#         ax = fig.add_subplot(111)
+        
+#         plot_rates = np.logspace(-5, -2, 500)
+#         plot_log_rates = np.log10(plot_rates)
+        
+#         darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
+        
+#         if st.session_state.param_per_temp is not None:
+#             df_params = st.session_state.param_per_temp
+#             for i, row in df_params.iterrows():
+#                 t = row['Temperature']
+#                 E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
+                
+#                 color = darker[i % len(darker)]
+#                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+#         else:
+#             shifts = st.session_state.analysis_shift_factors
+#             for i, t in enumerate(sorted(shifts.keys())):
+#                 sf = shifts[t]
+#                 c_temp = params['c'] + np.log10(sf)
+#                 E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
+#                 color = darker[i % len(darker)]
+#                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
+
+#         ax.set_xlabel("Strain Rate ($s^{-1}$)")
+#         ax.set_ylabel("Elastic Modulus (MPa)")
+#         ax.set_ylim(bottom=0)
+#         ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
+#         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+#         add_watermark(ax)
+#         st.pyplot(fig)
+        
+#         # 2. Save plot to a temporary buffer
+#         buf = io.BytesIO()
+#         fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+#         buf.seek(0)
+
+#         # 3. Layout: Spacer on left, Button on right
+#         # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+#         buff_col, button_col = st.columns([5, 2]) 
+        
+#         with button_col:
+#             st.download_button(
+#                 label="💾 Download Graph",
+#                 data=buf,
+#                 file_name="Elastic Modulus plot.png",
+#                 mime="image/png",
+#                 use_container_width=True # Makes the button fill the column width
+#             )
+## =================================================================================
 def page_elastic_modulus():
     st.title("Step 5: Elastic Modulus vs Strain Rate")
-    st.markdown("Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
-    #strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
+    st.markdown(r"Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     
     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
         return st.warning("Run Step 3 or 4 first.")
@@ -610,20 +698,11 @@ def page_elastic_modulus():
     
     col_left, col_right = st.columns([1, 3])
 
-    # --- Left Column: Inputs & Table ---
+    # --- Left Column: Cleared (Table Removed) ---
     with col_left:
-        try:
-            rates_table = [float(x.strip()) for x in strain_rates.split(',')]
-            rates_table = np.array(sorted(rates_table))
-        except:
-            rates_table = np.array([1e-5, 1e-4, 1e-3, 0.01])
+        # Kept empty as requested, but maintaining layout structure
+        st.write("") 
 
-        log_rates = np.log10(rates_table)
-        E_values = storage_modulus_model(log_rates, params['a'], params['b'], params['c'], params['d'])
-        
-        res_df = pd.DataFrame({"Strain rate (s⁻¹)": rates_table, "E (MPa)": E_values})
-        #st.dataframe(res_df.style.set_properties(**{'text-align': 'center'}), hide_index=True)
-        st.dataframe(res_df, hide_index=True)
     # --- Right Column: Graph & Download ---
     with col_right:
         # --- NEW CODE: Set Font to Times New Roman ---
@@ -638,6 +717,9 @@ def page_elastic_modulus():
         plot_rates = np.logspace(-5, -2, 500)
         plot_log_rates = np.log10(plot_rates)
         
+        # --- 1. Initialize Dictionary to store Data for CSV ---
+        csv_data = {"Strain Rate (1/s)": plot_rates}
+        
         darker = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
         
         if st.session_state.param_per_temp is not None:
@@ -645,6 +727,9 @@ def page_elastic_modulus():
             for i, row in df_params.iterrows():
                 t = row['Temperature']
                 E_curve = storage_modulus_model(plot_log_rates, row['a'], row['b'], row['c'], row['d'])
+                
+                # Store data for this temperature
+                csv_data[f"E @ {t}C (MPa)"] = E_curve
                 
                 color = darker[i % len(darker)]
                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
@@ -654,6 +739,10 @@ def page_elastic_modulus():
                 sf = shifts[t]
                 c_temp = params['c'] + np.log10(sf)
                 E_curve = storage_modulus_model(plot_log_rates, params['a'], params['b'], c_temp, params['d'])
+                
+                # Store data for this temperature
+                csv_data[f"E @ {t}C (MPa)"] = E_curve
+                
                 color = darker[i % len(darker)]
                 ax.semilogx(plot_rates, E_curve, '-', color=color, linewidth=2, label=f"{t} °C")
 
@@ -665,25 +754,38 @@ def page_elastic_modulus():
         add_watermark(ax)
         st.pyplot(fig)
         
-        # 2. Save plot to a temporary buffer
+        # --- Prepare Downloads ---
+        # 1. Image Buffer
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
         buf.seek(0)
-
-        # 3. Layout: Spacer on left, Button on right
-        # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
-        buff_col, button_col = st.columns([5, 2]) 
         
-        with button_col:
+        # 2. CSV Buffer (Create DataFrame from the stored dictionary)
+        df_export = pd.DataFrame(csv_data)
+        csv_buf = df_export.to_csv(index=False).encode('utf-8')
+
+        # 3. Layout: Two buttons side-by-side (CSV Left, Image Right)
+        # Ratio [4, 2, 2] pushes buttons to the right side
+        buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
+        
+        with csv_col:
+            st.download_button(
+                label="📄 Download CSV",
+                data=csv_buf,
+                file_name="Elastic_Modulus_Data.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+            
+        with img_col:
             st.download_button(
                 label="💾 Download Graph",
                 data=buf,
                 file_name="Elastic Modulus plot.png",
                 mime="image/png",
-                use_container_width=True # Makes the button fill the column width
+                use_container_width=True
             )
             
-
 # ==========================================
 # Main Navigation
 # ==========================================
@@ -703,6 +805,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
