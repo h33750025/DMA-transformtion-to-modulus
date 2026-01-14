@@ -364,7 +364,7 @@ def page_fitting():
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     # Use a single st.markdown call with inline LaTeX ($...$)
     st.markdown(r"Define upper limits for parameters $A$ and $D$ in the model:  $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
-    st.info(r"Adjust the fitting bounds A and D to fit the master curve, check the $R^2$ score for reference.)
+    st.info(r"Adjust the fitting bounds A and D to fit the master curve, check the $R^2$ score for reference.")
  
     
     # Create Layout: Left for controls (smaller), Right for graph (larger)
@@ -785,6 +785,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
