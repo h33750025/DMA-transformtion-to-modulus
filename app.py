@@ -374,7 +374,7 @@ def page_fitting():
     st.title("Step 3: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     # Use a single st.markdown call with inline LaTeX ($...$)
-    st.markdown(r"Define upper limits for parameters $A$ and $D$ in the model: $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
+    st.markdown(r"Define upper limits for parameters $A$ and $D$ in the model:  $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
  
     
     # Create Layout: Left for controls (smaller), Right for graph (larger)
@@ -385,8 +385,8 @@ def page_fitting():
         st.markdown("### Fit Bounds")
 
         # Real-time fitting sliders using Global Defaults
-        a_high = st.slider("Upper Bound 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
-        d_high = st.slider("Upper Bound 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+        a_high = st.slider("Upper Bound 'A'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
+        d_high = st.slider("Upper Bound 'D'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
         
         # Update Global State
         st.session_state.global_a_upper = a_high
@@ -489,8 +489,8 @@ def page_params_per_temp():
     with col_ctrl:
         st.subheader("Fitting Bounds")
         # Initialize with Global State
-        a_high = st.slider("Upper Bound for 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s6_a")
-        d_high = st.slider("Upper Bound for 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s6_d")
+        a_high = st.slider("Upper Bound for 'A'", 10.0, 5000.0, st.session_state.global_a_upper, key="s6_a")
+        d_high = st.slider("Upper Bound for 'D'", 10.0, 5000.0, st.session_state.global_d_upper, key="s6_d")
         
         # Update Global State (Sync with Step 3)
         st.session_state.global_a_upper = a_high
@@ -702,6 +702,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
