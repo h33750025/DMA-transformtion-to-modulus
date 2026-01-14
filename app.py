@@ -141,7 +141,7 @@ def page_load_and_visualize():
                     ax.set_xlabel('Frequency (Hz)')
                     ax.set_ylabel("Storage Modulus (MPa)")
                     ax.set_title("Raw Data Plot")
-                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                    ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
                     add_watermark(ax)
                     st.pyplot(fig)
 
@@ -222,7 +222,7 @@ def page_load_and_visualize():
                 ax.semilogx(sub['Frequency'], sub['Storage Modulus'], 
                            color=darker[i%len(darker)], label=f"{temp} °C")
             ax.set_xlabel('Frequency (Hz)'); ax.set_ylabel("Storage Modulus (MPa)"); ax.set_title("Raw Data Plot")
-            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); add_watermark(ax)
+            ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left'); add_watermark(ax)
             st.pyplot(fig)
             # 2. Save plot to a temporary buffer
             buf = io.BytesIO()
@@ -531,7 +531,7 @@ def page_fitting():
                     transform=ax.transAxes, 
                     verticalalignment='top', fontsize = 16)
                     
-            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+            ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
             add_watermark(ax)
             st.pyplot(fig)
 
@@ -776,6 +776,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
