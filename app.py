@@ -379,10 +379,10 @@ def page_fitting():
     
     # --- Left Column: Sliders ---
     with col_controls:
-        st.markdown("### Parameters")
+        st.markdown("### Fit Bounds")
         # Real-time fitting sliders using Global Defaults
-        a_high = st.slider("Max 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
-        d_high = st.slider("Max 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+        a_high = st.slider("Upper Bound 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
+        d_high = st.slider("Upper Bound 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
         
         # Update Global State
         st.session_state.global_a_upper = a_high
@@ -478,11 +478,12 @@ def page_params_per_temp():
     st.title("Step 4: Master Curve Parameters")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     
-    st.markdown("Calculates the model parameters for each temperature acting as the reference temperature.")
-    st.markdown("Adjust the fitting bound parameters a and b so that the fitting curves are aling to the master curves at each temperature.")
+    st.markdown("Please check each fittd curves, if they are not align properly, 
+    adjust the fitting bounds for parameters a and b until the fitted curves align with the corresponding master curves at each temperature.")
+  
     col_ctrl, col_graph = st.columns([1, 3])
     with col_ctrl:
-        st.subheader("Fit Bounds")
+        st.subheader("Fitting Bounds")
         # Initialize with Global State
         a_high = st.slider("Upper Bound for 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s6_a")
         d_high = st.slider("Upper Bound for 'd'", 10.0, 5000.0, st.session_state.global_d_upper, key="s6_d")
@@ -697,6 +698,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
