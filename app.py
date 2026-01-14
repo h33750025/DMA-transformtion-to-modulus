@@ -373,6 +373,8 @@ def page_tts():
 def page_fitting():
     st.title("Step 3: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
+    st.markdown("Define upper limits for parameters $A$ and $D$ in the model:")
+    st.latex(r"E'(\omega) = A \tanh(B \log(\omega) + C) + D") #
     
     # Create Layout: Left for controls (smaller), Right for graph (larger)
     col_controls, col_graph = st.columns([1, 3])
@@ -380,10 +382,6 @@ def page_fitting():
     # --- Left Column: Sliders ---
     with col_controls:
         st.markdown("### Fit Bounds")
-        # --- ADDED DESCRIPTION & EQUATION ---
-        st.markdown("Define upper limits for parameters $A$ and $D$ in the model:")
-        st.latex(r"E'(\omega) = A \tanh(B \log(\omega) + C) + D") #
-        # ------------------------------------
 
         # Real-time fitting sliders using Global Defaults
         a_high = st.slider("Upper Bound 'a'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
@@ -703,6 +701,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
