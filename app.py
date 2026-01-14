@@ -479,7 +479,7 @@ def page_params_per_temp():
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     
     st.markdown("Calculates the model parameters for each temperature acting as the reference temperature.")
-    
+    st.markdown("Adjust the fitting bound parameters a and b so that the fitting curves are aling to the master curves at each temperature.")
     col_ctrl, col_graph = st.columns([1, 3])
     with col_ctrl:
         st.subheader("Fit Bounds")
@@ -591,7 +591,7 @@ def page_params_per_temp():
     
 def page_elastic_modulus():
     st.title("Step 5: Elastic Modulus vs Strain Rate")
-    st.markdown("Predicts Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
+    st.markdown("Predicts quasi-static Elastic Modulus ($E$) as a function of Strain Rate ($\dot{\epsilon}$).")
     #strain_rates = st.text_input("Enter Strain Rates (comma separated) for Table", "0.00001, 0.0001, 0.001, 0.01")
     
     if st.session_state.param_per_temp is None and st.session_state.fitted_params is None: 
@@ -697,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
