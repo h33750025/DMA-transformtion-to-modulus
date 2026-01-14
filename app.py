@@ -659,6 +659,7 @@ def page_elastic_modulus():
 
         ax.set_xlabel("Strain Rate ($s^{-1}$)")
         ax.set_ylabel("Elastic Modulus (MPa)")
+        ax.set_ylim(bottom=0)
         ax.set_title("Elastic Modulus vs Strain Rate (All Temperatures)")
         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
         add_watermark(ax)
@@ -702,6 +703,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
