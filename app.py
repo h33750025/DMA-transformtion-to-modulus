@@ -774,7 +774,7 @@ def main():
     
     pages = {
         "1. Load & Visualize": page_load_and_visualize,
-        "2. TTS Analysis": page_tts,
+        "2. Master Curve": page_tts,
         "3. Curve Fitting": page_fitting,
         "4. Params per Temp": page_params_per_temp,
         "5. Elastic Modulus": page_elastic_modulus
@@ -785,3 +785,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
