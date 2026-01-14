@@ -281,86 +281,86 @@ def page_load_and_visualize():
                     )
             except: pass
 
-
-def page_tts():
-    st.title("Step 2: Master Curve")
-    if st.session_state.data is None: return st.warning("No data loaded.")
+###========================= Master Curve only ==================================####
+# def page_tts():
+#     st.title("Step 2: Master Curve")
+#     if st.session_state.data is None: return st.warning("No data loaded.")
     
-    if st.button("Run Analysis"):
-        data = st.session_state.data
-        ref_temp = min(data["Temperature"].unique())
-        extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
-        shift_factors = {ref_temp: 1.0}
+#     if st.button("Run Analysis"):
+#         data = st.session_state.data
+#         ref_temp = min(data["Temperature"].unique())
+#         extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
+#         shift_factors = {ref_temp: 1.0}
         
-        for temp in sorted([t for t in data["Temperature"].unique() if t > ref_temp]):
-            df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
-            max_freq = df_temp["Frequency"].max()
-            mod_at_max = df_temp.iloc[-1]["Storage Modulus"]
+#         for temp in sorted([t for t in data["Temperature"].unique() if t > ref_temp]):
+#             df_temp = data[data["Temperature"] == temp].sort_values('Frequency')
+#             max_freq = df_temp["Frequency"].max()
+#             mod_at_max = df_temp.iloc[-1]["Storage Modulus"]
             
-            # Find overlap match
-            idx = (extended["Storage Modulus"] - mod_at_max).abs().idxmin()
-            match_freq = extended.loc[idx, "Frequency"]
+#             # Find overlap match
+#             idx = (extended["Storage Modulus"] - mod_at_max).abs().idxmin()
+#             match_freq = extended.loc[idx, "Frequency"]
             
-            sf = match_freq / max_freq
-            shift_factors[temp] = sf
+#             sf = match_freq / max_freq
+#             shift_factors[temp] = sf
             
-            shifted = df_temp.copy()
-            shifted["Frequency"] *= sf
-            extended = pd.concat([extended, shifted], ignore_index=True).sort_values("Frequency")
+#             shifted = df_temp.copy()
+#             shifted["Frequency"] *= sf
+#             extended = pd.concat([extended, shifted], ignore_index=True).sort_values("Frequency")
             
-        st.session_state.analysis_shift_factors = shift_factors
-        st.session_state.master_curve_data = extended
-        st.success("Complete")
+#         st.session_state.analysis_shift_factors = shift_factors
+#         st.session_state.master_curve_data = extended
+#         st.success("Complete")
         
-    if st.session_state.master_curve_data is not None:
-        shifts = st.session_state.analysis_shift_factors
+#     if st.session_state.master_curve_data is not None:
+#         shifts = st.session_state.analysis_shift_factors
         
-        #col1, col2 = st.columns([1, 3])
+#         #col1, col2 = st.columns([1, 3])
         
-        # with col1:
-        #     st.write("### Shift Factors")
-        #     sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
-        #     df_sf = pd.DataFrame(sf_list)
-        #     st.dataframe(df_sf, height=300, hide_index=True)
+#         # with col1:
+#         #     st.write("### Shift Factors")
+#         #     sf_list = [{"Temp (°C)": t, "aT": s} for t, s in shifts.items()]
+#         #     df_sf = pd.DataFrame(sf_list)
+#         #     st.dataframe(df_sf, height=300, hide_index=True)
             
-        #with col2:
-        fig = Figure(figsize=(10, 6))
-        ax = fig.add_subplot(111)
+#         #with col2:
+#         fig = Figure(figsize=(10, 6))
+#         ax = fig.add_subplot(111)
         
-        for t in sorted(shifts.keys()):
-            sf = shifts[t]
-            sub = st.session_state.data[st.session_state.data['Temperature'] == t]
-            ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
+#         for t in sorted(shifts.keys()):
+#             sf = shifts[t]
+#             sub = st.session_state.data[st.session_state.data['Temperature'] == t]
+#             ax.semilogx(sub['Frequency']*sf, sub['Storage Modulus'], 'o', label=f"{t} °C")
             
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Storage Modulus (MPa)")
-        ax.set_title("Master Curve")
-        ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
-        add_watermark(ax)
+#         ax.set_xlabel("Frequency (Hz)")
+#         ax.set_ylabel("Storage Modulus (MPa)")
+#         ax.set_title("Master Curve")
+#         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+#         add_watermark(ax)
         
-        # 1. Show the plot
-        st.pyplot(fig)
+#         # 1. Show the plot
+#         st.pyplot(fig)
 
-        # 2. Save plot to a temporary buffer
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
-        buf.seek(0)
+#         # 2. Save plot to a temporary buffer
+#         buf = io.BytesIO()
+#         fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+#         buf.seek(0)
 
-        # 3. Layout: Spacer on left, Button on right
-        # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
-        buff_col, button_col = st.columns([5, 2]) 
+#         # 3. Layout: Spacer on left, Button on right
+#         # [5, 2] ratio gives 5 parts empty space, 2 parts for the button
+#         buff_col, button_col = st.columns([5, 2]) 
         
-        with button_col:
-            st.download_button(
-                label="💾 Download Graph",
-                data=buf,
-                file_name="master_curve.png",
-                mime="image/png",
-                use_container_width=True # Makes the button fill the column width
-            )
+#         with button_col:
+#             st.download_button(
+#                 label="💾 Download Graph",
+#                 data=buf,
+#                 file_name="master_curve.png",
+#                 mime="image/png",
+#                 use_container_width=True # Makes the button fill the column width
+#             )
 ###############################################################
 def page_fitting():
-    st.title("Step 3: Curve Fitting")
+    st.title("Step 2: Curve Fitting")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     # Use a single st.markdown call with inline LaTeX ($...$)
     st.markdown(r"Curve fitting function used:  $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
@@ -395,11 +395,9 @@ def page_fitting():
             # Update Session State
             st.session_state.analysis_shift_factors = shift_factors
             st.session_state.master_curve_data = extended
-    ######################################################
     if st.session_state.master_curve_data is not None:
         shifts = st.session_state.analysis_shift_factors
- 
-    
+
     # Create Layout: Left for controls (smaller), Right for graph (larger)
     col_controls, col_graph = st.columns([1, 3])
     
@@ -503,7 +501,7 @@ def page_fitting():
 
 #########################################################
 def page_params_per_temp():
-    st.title("Step 4: Master Curve Parameters")
+    st.title("Step 3: Master Curve Parameters")
     if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     st.info(r"Please check each fitted curves, if they are not align properly, adjust the fitting bounds.")
   
@@ -617,11 +615,9 @@ def page_params_per_temp():
     st.session_state.param_per_temp = df_res
 
 
-
-
 #=================================================================
 def page_elastic_modulus():
-    st.title("Step 5: Elastic Modulus Prediction")
+    st.title("Step 4: Elastic Modulus Prediction")
     st.markdown(r"Predicts **Elastic Modulus ($E$)** using numerical integration of the stress history.")
 
     # --- Check Prerequisites ---
@@ -800,174 +796,174 @@ def page_elastic_modulus():
         st.info("Click 'Run Simulation' to start calculations.")
 
 # =================== strain stress curve ==========================================
-def page_stress_strain_curve():
-    st.title("Step 5: Stress vs Strain Prediction")
-    st.markdown(r"Predicts **Stress ($\sigma$) vs Strain ($\epsilon$)** response for a **selected Temperature** and **Strain Rate**.")
+# def page_stress_strain_curve():
+#     st.title("Step 5: Stress vs Strain Prediction")
+#     st.markdown(r"Predicts **Stress ($\sigma$) vs Strain ($\epsilon$)** response for a **selected Temperature** and **Strain Rate**.")
 
-    # --- Check Prerequisites ---
-    if st.session_state.fitted_params is None: 
-        return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
+#     # --- Check Prerequisites ---
+#     if st.session_state.fitted_params is None: 
+#         return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
 
-    # --- 0. Robust Import for SciPy ---
-    try:
-        from scipy.integrate import simpson
-    except ImportError:
-        from scipy.integrate import simps as simpson
+#     # --- 0. Robust Import for SciPy ---
+#     try:
+#         from scipy.integrate import simpson
+#     except ImportError:
+#         from scipy.integrate import simps as simpson
 
-    # --- 1. Initialize Session State for this Page ---
-    # We store the last calculated data here so it persists during navigation
-    if 'stress_strain_data' not in st.session_state:
-        st.session_state.stress_strain_data = None
+#     # --- 1. Initialize Session State for this Page ---
+#     # We store the last calculated data here so it persists during navigation
+#     if 'stress_strain_data' not in st.session_state:
+#         st.session_state.stress_strain_data = None
 
-    # --- 2. Simulation Controls ---
-    col1, col2, col3 = st.columns(3)
+#     # --- 2. Simulation Controls ---
+#     col1, col2, col3 = st.columns(3)
     
-    with col1:
-        avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
-        selected_temp = st.selectbox("Select Temperature (°C)", avail_temps)
+#     with col1:
+#         avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+#         selected_temp = st.selectbox("Select Temperature (°C)", avail_temps)
 
-    with col2:
-        rates_options = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0]
-        selected_rate = st.selectbox(
-            "Select Strain Rate (1/s)", 
-            rates_options, 
-            index=3, 
-            format_func=lambda x: f"{x:.0e}"
-        )
+#     with col2:
+#         rates_options = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0]
+#         selected_rate = st.selectbox(
+#             "Select Strain Rate (1/s)", 
+#             rates_options, 
+#             index=3, 
+#             format_func=lambda x: f"{x:.0e}"
+#         )
 
-    with col3:
-        strain_max = st.number_input("Max Strain", value=0.0025, format="%.4f")
+#     with col3:
+#         strain_max = st.number_input("Max Strain", value=0.0025, format="%.4f")
     
-    run_sim = st.button("Run Simulation", type="primary")
+#     run_sim = st.button("Run Simulation", type="primary")
 
-    # --- 3. Calculation Logic (Runs ONLY if Button Clicked) ---
-    if run_sim:
-        # Define internal functions
-        def E_prime(w, A, B, C, D):
-            return A * np.tanh(B * (np.log10(w) + C)) + D
+#     # --- 3. Calculation Logic (Runs ONLY if Button Clicked) ---
+#     if run_sim:
+#         # Define internal functions
+#         def E_prime(w, A, B, C, D):
+#             return A * np.tanh(B * (np.log10(w) + C)) + D
 
-        def Etime_time_cycle(time_arr, params, cycle=500):
-            A, B, C, D = params['a'], params['b'], params['c'], params['d']
-            N1, N2, N3 = 240, 74, 24
-            Etime = np.zeros_like(time_arr)
+#         def Etime_time_cycle(time_arr, params, cycle=500):
+#             A, B, C, D = params['a'], params['b'], params['c'], params['d']
+#             N1, N2, N3 = 240, 74, 24
+#             Etime = np.zeros_like(time_arr)
 
-            def integrand(t, E_prime_w, w):
-                return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
+#             def integrand(t, E_prime_w, w):
+#                 return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
 
-            for i, t in enumerate(time_arr):
-                if t == 0: continue
-                w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
-                w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
-                w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
-                all_w = np.concatenate([w1, w2[1:], w3[1:]])
-                y = integrand(t, E_prime(all_w, A, B, C, D), all_w)
-                Etime[i] = simpson(y, x=all_w)
-            return Etime
+#             for i, t in enumerate(time_arr):
+#                 if t == 0: continue
+#                 w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
+#                 w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
+#                 w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
+#                 all_w = np.concatenate([w1, w2[1:], w3[1:]])
+#                 y = integrand(t, E_prime(all_w, A, B, C, D), all_w)
+#                 Etime[i] = simpson(y, x=all_w)
+#             return Etime
 
-        # Prepare Params
-        params = {}
-        if st.session_state.param_per_temp is not None:
-            row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == selected_temp]
-            if not row.empty:
-                params = row.iloc[0].to_dict()
+#         # Prepare Params
+#         params = {}
+#         if st.session_state.param_per_temp is not None:
+#             row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == selected_temp]
+#             if not row.empty:
+#                 params = row.iloc[0].to_dict()
         
-        if not params:
-            master = st.session_state.fitted_params
-            sf = st.session_state.analysis_shift_factors.get(selected_temp, 1.0)
-            params = master.copy()
-            params['c'] = master['c'] + np.log10(sf)
+#         if not params:
+#             master = st.session_state.fitted_params
+#             sf = st.session_state.analysis_shift_factors.get(selected_temp, 1.0)
+#             params = master.copy()
+#             params['c'] = master['c'] + np.log10(sf)
 
-        # Calculation
-        with st.spinner(f"Calculating for {selected_temp}°C..."):
-            num_steps = 500
-            strain_min = 1e-25
-            time_min_rate = strain_min / selected_rate
-            time_max_rate = strain_max / selected_rate
-            time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
+#         # Calculation
+#         with st.spinner(f"Calculating for {selected_temp}°C..."):
+#             num_steps = 500
+#             strain_min = 1e-25
+#             time_min_rate = strain_min / selected_rate
+#             time_max_rate = strain_max / selected_rate
+#             time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
             
-            E_t = Etime_time_cycle(time_range_rate, params, cycle=500)
-            Stress_history_rate = E_t / 2 * selected_rate
+#             E_t = Etime_time_cycle(time_range_rate, params, cycle=500)
+#             Stress_history_rate = E_t / 2 * selected_rate
             
-            stress_vals = []
-            for i in range(len(time_range_rate)):
-                if i == 0:
-                    stress_vals.append(0)
-                else:
-                    val = simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1])
-                    stress_vals.append(val)
+#             stress_vals = []
+#             for i in range(len(time_range_rate)):
+#                 if i == 0:
+#                     stress_vals.append(0)
+#                 else:
+#                     val = simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1])
+#                     stress_vals.append(val)
             
-            cumulative_integral = np.array(stress_vals)
-            strain_range_rate = time_range_rate * selected_rate
+#             cumulative_integral = np.array(stress_vals)
+#             strain_range_rate = time_range_rate * selected_rate
             
-            # Save results to Session State
-            st.session_state.stress_strain_data = {
-                "strain": strain_range_rate,
-                "stress": cumulative_integral,
-                "temp": selected_temp,
-                "rate": selected_rate
-            }
+#             # Save results to Session State
+#             st.session_state.stress_strain_data = {
+#                 "strain": strain_range_rate,
+#                 "stress": cumulative_integral,
+#                 "temp": selected_temp,
+#                 "rate": selected_rate
+#             }
 
-    # --- 4. Visualization (Runs if Data Exists in Session State) ---
-    if st.session_state.stress_strain_data is not None:
-        data = st.session_state.stress_strain_data
+#     # --- 4. Visualization (Runs if Data Exists in Session State) ---
+#     if st.session_state.stress_strain_data is not None:
+#         data = st.session_state.stress_strain_data
         
-        # Setup Plot
-        plt.rcParams["font.family"] = "serif"
-        plt.rcParams["font.serif"] = ["Times New Roman"]
+#         # Setup Plot
+#         plt.rcParams["font.family"] = "serif"
+#         plt.rcParams["font.serif"] = ["Times New Roman"]
         
-        fig = Figure(figsize=(10, 6))
-        ax = fig.add_subplot(111)
+#         fig = Figure(figsize=(10, 6))
+#         ax = fig.add_subplot(111)
         
-        label_txt = f"{data['temp']}°C, {data['rate']:.0e}/s"
-        ax.plot(data['strain'], data['stress'], label=label_txt, color='black', linewidth=2)
+#         label_txt = f"{data['temp']}°C, {data['rate']:.0e}/s"
+#         ax.plot(data['strain'], data['stress'], label=label_txt, color='black', linewidth=2)
 
-        # --- Conditional Y-Limit Logic ---
-        # "if there are y values that below 0, make the graph show only bottom 0"
-        if np.min(data['stress']) < 0:
-            ax.set_ylim(bottom=0)
-        # ---------------------------------
+#         # --- Conditional Y-Limit Logic ---
+#         # "if there are y values that below 0, make the graph show only bottom 0"
+#         if np.min(data['stress']) < 0:
+#             ax.set_ylim(bottom=0)
+#         # ---------------------------------
 
-        ax.set_xlabel("Strain (1)", fontsize=16)
-        ax.set_ylabel("Stress (MPa)", fontsize=16)
-        ax.set_title(f"Stress vs Strain Prediction", fontsize=18)
-        ax.tick_params(axis='both', which='major', labelsize=12)
-        ax.set_xlim(left=0)
+#         ax.set_xlabel("Strain (1)", fontsize=16)
+#         ax.set_ylabel("Stress (MPa)", fontsize=16)
+#         ax.set_title(f"Stress vs Strain Prediction", fontsize=18)
+#         ax.tick_params(axis='both', which='major', labelsize=12)
+#         ax.set_xlim(left=0)
         
-        ax.legend(loc='upper left', fontsize=12)
-        ax.grid(True, which="both", ls="--", alpha=0.4)
-        add_watermark(ax)
+#         ax.legend(loc='upper left', fontsize=12)
+#         ax.grid(True, which="both", ls="--", alpha=0.4)
+#         add_watermark(ax)
         
-        st.pyplot(fig)
+#         st.pyplot(fig)
         
-        # Buffers for Download
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
-        buf.seek(0)
+#         # Buffers for Download
+#         buf = io.BytesIO()
+#         fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+#         buf.seek(0)
         
-        df_export = pd.DataFrame({"Strain": data['strain'], "Stress (MPa)": data['stress']})
-        csv_buf = df_export.to_csv(index=False).encode('utf-8')
+#         df_export = pd.DataFrame({"Strain": data['strain'], "Stress (MPa)": data['stress']})
+#         csv_buf = df_export.to_csv(index=False).encode('utf-8')
 
-        buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
+#         buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
         
-        with csv_col:
-            st.download_button(
-                label="📄 Download CSV",
-                data=csv_buf,
-                file_name=f"Stress_Strain_{data['temp']}C.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+#         with csv_col:
+#             st.download_button(
+#                 label="📄 Download CSV",
+#                 data=csv_buf,
+#                 file_name=f"Stress_Strain_{data['temp']}C.csv",
+#                 mime="text/csv",
+#                 use_container_width=True
+#             )
             
-        with img_col:
-            st.download_button(
-                label="💾 Download Graph",
-                data=buf,
-                file_name=f"Stress_Strain_{data['temp']}C.png",
-                mime="image/png",
-                use_container_width=True
-            )
-    else:
-        st.info("Select parameters and click 'Run Simulation'.")
+#         with img_col:
+#             st.download_button(
+#                 label="💾 Download Graph",
+#                 data=buf,
+#                 file_name=f"Stress_Strain_{data['temp']}C.png",
+#                 mime="image/png",
+#                 use_container_width=True
+#             )
+#     else:
+#         st.info("Select parameters and click 'Run Simulation'.")
 
 # ==========================================
 # Main Navigation
@@ -979,9 +975,9 @@ def main():
         "1. Load & Visualize": page_load_and_visualize,
         #"2. Master Curve": page_tts,#
         "2. Curve Fitting": page_fitting,
-        "3. Params per Temp": page_params_per_temp,
-        "4. Stress-Strain Curve": page_stress_strain_curve,
-        "5. Elastic Modulus": page_elastic_modulus
+        "3. Master Curves Fitting": page_params_per_temp,
+        #"4. Stress-Strain Curve": page_stress_strain_curve,#
+        "4. Elastic Modulus": page_elastic_modulus
     }
     
     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
@@ -989,6 +985,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
