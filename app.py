@@ -97,7 +97,7 @@ def add_watermark(ax, text="NYU-ViscoMOD"):
         # For 2D plots:
         # x=1.0 aligns with the right edge of the axis
         # y=-0.1 places it below the x-axis labels
-        ax.text(1.0, -0.05, text, **props)
+        ax.text(1.0, -0.065, text, **props)
 ##########################################################       
 def storage_modulus_model(log_omega, a, b, c, d):
     """The hyperbolic tangent model for E'(w)."""
@@ -697,6 +697,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
