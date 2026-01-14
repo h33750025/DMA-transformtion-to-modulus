@@ -773,10 +773,10 @@ def main():
     
     pages = {
         "1. Load & Visualize": page_load_and_visualize,
-        "2. Master Curve": page_tts,
-        "3. Curve Fitting": page_fitting,
-        "4. Params per Temp": page_params_per_temp,
-        "5. Elastic Modulus": page_elastic_modulus
+        #"2. Master Curve": page_tts,#
+        "2. Curve Fitting": page_fitting,
+        "3. Params per Temp": page_params_per_temp,
+        "4. Elastic Modulus": page_elastic_modulus
     }
     
     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
@@ -784,5 +784,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
