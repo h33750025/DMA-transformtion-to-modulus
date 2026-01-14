@@ -704,7 +704,7 @@ def page_elastic_modulus():
     # --- Right Column: Graph & Download ---
     with col_right:
         # Plot ALL Temperatures
-        fig = Figure(figsize=(12, 8))
+        fig = Figure(figsize=(10, 6))
         ax = fig.add_subplot(111)
         
         plot_rates = np.logspace(-5, -2, 500)
@@ -776,6 +776,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
