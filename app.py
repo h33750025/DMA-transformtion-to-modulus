@@ -677,196 +677,402 @@ def page_params_per_temp():
 #         )
         
 #=================================================
+# strain stress curve 
+# def page_elastic_modulus():
+#     st.title("Step 5: Stress vs Strain Prediction")
+#     st.markdown(r"Predicts **Stress ($\sigma$) vs Strain ($\epsilon$)** response for **all temperatures** at fixed strain rates ($10^{-5}$ to $10^{-2} s^{-1}$).")
 
+#     # --- Check Prerequisites ---
+#     if st.session_state.fitted_params is None: 
+#         return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
+
+#     # --- 0. Robust Import for SciPy (Fixes the ImportError) ---
+#     try:
+#         from scipy.integrate import simpson
+#     except ImportError:
+#         from scipy.integrate import simps as simpson
+
+#     # --- 1. Simulation Controls ---
+#     # Hardcoded Settings as requested
+#     strain_rates_to_plot = [1e-5, 1e-4, 1e-3, 1e-2]
+#     strain_max = 0.0025
+#     avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+    
+#     st.info(f"Settings: Strain Max = {strain_max} | Rates = {strain_rates_to_plot} | Temperatures = {avail_temps}")
+    
+#     run_sim = st.button("Run Simulation (All Temperatures)", type="primary")
+
+#     if not run_sim:
+#         return
+
+#     # --- 2. Define Calculation Functions ---
+#     def E_prime(w, A, B, C, D):
+#         # Model Function
+#         return A * np.tanh(B * (np.log10(w) + C)) + D
+
+#     def Etime_time_cycle(time_arr, params, cycle=500):
+#         # Numerical Integration to get E(t)
+#         A, B, C, D = params['a'], params['b'], params['c'], params['d']
+        
+#         N1, N2, N3 = 240, 74, 24
+#         Etime = np.zeros_like(time_arr)
+
+#         def integrand(t, E_prime_w, w):
+#             return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
+
+#         for i, t in enumerate(time_arr):
+#             if t == 0: continue
+            
+#             w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
+#             w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
+#             w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
+
+#             all_w = np.concatenate([w1, w2[1:], w3[1:]])
+#             y = integrand(t, E_prime(all_w, A, B, C, D), all_w)
+            
+#             # Using robust simpson import
+#             Etime[i] = simpson(y, x=all_w)
+            
+#         return Etime
+
+#     # --- 3. Main Calculation Loop ---
+#     strain_min = 1e-25
+#     num_steps = 500
+#     results_data = {} # For CSV
+    
+#     # Setup Plot
+#     plt.rcParams["font.family"] = "serif"
+#     plt.rcParams["font.serif"] = ["Times New Roman"]
+    
+#     fig = Figure(figsize=(12, 8))
+#     ax = fig.add_subplot(111)
+    
+#     colors = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
+    
+#     # Progress Bar setup
+#     total_iterations = len(avail_temps) * len(strain_rates_to_plot)
+#     progress_bar = st.progress(0, text="Starting Simulation...")
+#     current_iter = 0
+
+#     with st.spinner("Calculating Stress-Strain curves..."):
+#         for t_idx, temp in enumerate(avail_temps):
+            
+#             # Get Parameters for this Temperature
+#             params = {}
+#             if st.session_state.param_per_temp is not None:
+#                 row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == temp]
+#                 if not row.empty:
+#                     params = row.iloc[0].to_dict()
+            
+#             if not params:
+#                 master = st.session_state.fitted_params
+#                 sf = st.session_state.analysis_shift_factors.get(temp, 1.0)
+#                 params = master.copy()
+#                 params['c'] = master['c'] + np.log10(sf)
+
+#             # Assign a specific color/shade for this temperature group?
+#             # Or cycle through colors for every line. 
+#             # To make it readable, we might want same color for same temp, different linestyle for rate.
+#             temp_color = colors[t_idx % len(colors)]
+            
+#             for r_idx, rate in enumerate(strain_rates_to_plot):
+#                 # Update Progress
+#                 current_iter += 1
+#                 progress_bar.progress(int(current_iter / total_iterations * 100), 
+#                                       text=f"Processing {temp}°C | Rate {rate}")
+
+#                 # Time setup
+#                 time_min_rate = strain_min / rate
+#                 time_max_rate = strain_max / rate
+#                 time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
+                
+#                 # Calculate E(t)
+#                 E_t = Etime_time_cycle(time_range_rate, params, cycle=500)
+                
+#                 # Calculate Stress History
+#                 Stress_history_rate = E_t / 2 * rate
+                
+#                 # Cumulative Integral for Stress
+#                 stress_vals = []
+#                 for i in range(len(time_range_rate)):
+#                     if i == 0:
+#                         stress_vals.append(0)
+#                     else:
+#                         val = simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1])
+#                         stress_vals.append(val)
+                
+#                 cumulative_integral = np.array(stress_vals)
+#                 strain_range_rate = time_range_rate * rate
+                
+#                 # Plotting
+#                 # Dashed lines for faster rates, Solid for slower? Or just simple legend.
+#                 # Let's use alpha or linestyle to distinguish rates if needed.
+#                 linestyles = ['-', '--', '-.', ':']
+#                 ls = linestyles[r_idx % len(linestyles)]
+                
+#                 label_txt = f"{temp}°C, {rate:.0e}/s"
+#                 ax.plot(strain_range_rate, cumulative_integral, 
+#                         label=label_txt, color=temp_color, linestyle=ls, linewidth=1.5)
+                
+#                 # Store Data
+#                 results_data[f"Strain_T{temp}_R{rate}"] = strain_range_rate
+#                 results_data[f"Stress_T{temp}_R{rate}"] = cumulative_integral
+
+#     progress_bar.empty()
+
+#     # --- 4. Finalize Plot ---
+#     ax.set_xlabel("Strain (1)", fontsize=16)
+#     ax.set_ylabel("Stress (MPa)", fontsize=16)
+#     ax.set_title(f"Stress vs Strain (All Temperatures)", fontsize=18)
+#     ax.tick_params(axis='both', which='major', labelsize=12)
+    
+#     ax.set_ylim(bottom=0)
+#     ax.set_xlim(left=0)
+    
+#     # Legend might be large, place it outside
+#     ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=10, ncol=1)
+#     ax.grid(True, which="both", ls="--", alpha=0.4)
+#     add_watermark(ax)
+    
+#     # --- 5. Output & Downloads ---
+#     st.pyplot(fig)
+    
+#     # Buffers
+#     buf = io.BytesIO()
+#     fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
+#     buf.seek(0)
+    
+#     # CSV - Pad with NaNs if lengths differ (unlikely here as steps=500 fixed)
+#     # Using dict directly creates a DataFrame where keys are columns
+#     df_export = pd.DataFrame(dict([ (k, pd.Series(v)) for k,v in results_data.items() ]))
+#     csv_buf = df_export.to_csv(index=False).encode('utf-8')
+
+#     # Layout Buttons
+#     buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
+    
+#     with csv_col:
+#         st.download_button(
+#             label="📄 Download CSV",
+#             data=csv_buf,
+#             file_name=f"Stress_Strain_AllTemps.csv",
+#             mime="text/csv",
+#             use_container_width=True
+#         )
+        
+#     with img_col:
+#         st.download_button(
+#             label="💾 Download Graph",
+#             data=buf,
+#             file_name=f"Stress_Strain_AllTemps.png",
+#             mime="image/png",
+#             use_container_width=True
+#         )
+
+
+#===========================================
 def page_elastic_modulus():
-    st.title("Step 5: Stress vs Strain Prediction")
-    st.markdown(r"Predicts **Stress ($\sigma$) vs Strain ($\epsilon$)** response for **all temperatures** at fixed strain rates ($10^{-5}$ to $10^{-2} s^{-1}$).")
+    st.title("Step 5: Elastic Modulus Prediction")
+    st.markdown(r"Predicts **Elastic Modulus ($E$)** using numerical integration of the stress history.")
 
     # --- Check Prerequisites ---
     if st.session_state.fitted_params is None: 
         return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
 
-    # --- 0. Robust Import for SciPy (Fixes the ImportError) ---
+    # --- 0. Robust Import for SciPy ---
     try:
         from scipy.integrate import simpson
     except ImportError:
         from scipy.integrate import simps as simpson
 
     # --- 1. Simulation Controls ---
-    # Hardcoded Settings as requested
-    strain_rates_to_plot = [1e-5, 1e-4, 1e-3, 1e-2]
+    # Parameters from requirements
+    strain_rates_to_plot = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+    strain_min = 1e-25
     strain_max = 0.0025
-    avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+    num_steps = 500
     
-    st.info(f"Settings: Strain Max = {strain_max} | Rates = {strain_rates_to_plot} | Temperatures = {avail_temps}")
+    st.info(f"Settings: Strain Rates = {strain_rates_to_plot} | Max Strain = {strain_max}")
     
     run_sim = st.button("Run Simulation (All Temperatures)", type="primary")
 
     if not run_sim:
         return
 
-    # --- 2. Define Calculation Functions ---
-    def E_prime(w, A, B, C, D):
-        # Model Function
-        return A * np.tanh(B * (np.log10(w) + C)) + D
+    # --- 2. Define Calculation Functions (From Scheme) ---
+    
+    # Define the function E'(w)
+    def E_prime(w, a, b, c, d):
+        # NOTE: Using np.log (natural log) as requested in scheme
+        return a * np.tanh(b * ((np.log(w)) + c)) + d
 
-    def Etime_time_cycle(time_arr, params, cycle=500):
-        # Numerical Integration to get E(t)
-        A, B, C, D = params['a'], params['b'], params['c'], params['d']
-        
+    # Function time_cycle for Etime
+    def Etime_time_cycle(time, cycle, a, b, c, d):
+        # Integration of sigmoidal curve numerically to get E(t)
         N1, N2, N3 = 240, 74, 24
-        Etime = np.zeros_like(time_arr)
+        
+        # Initialize Etime
+        Etime = np.zeros_like(time)
 
+        # Define integrand function
         def integrand(t, E_prime_w, w):
             return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
 
-        for i, t in enumerate(time_arr):
+        # Process each time point
+        for i, t in enumerate(time):
             if t == 0: continue
             
+            # Conditions for different ranges of cycles
             w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
             w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
             w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
 
-            all_w = np.concatenate([w1, w2[1:], w3[1:]])
-            y = integrand(t, E_prime(all_w, A, B, C, D), all_w)
-            
-            # Using robust simpson import
-            Etime[i] = simpson(y, x=all_w)
-            
+            # Concatenating all frequencies
+            all_w = np.concatenate([w1, w2[1:], w3[1:]])  # Avoid repeating points at boundaries
+
+            # Compute integrand for all frequencies
+            # Pass individual parameters a,b,c,d
+            y = integrand(t, E_prime(all_w, a, b, c, d), all_w)
+
+            # Integrate using the trapezoidal method
+            Etime[i] = np.trapz(y, all_w)
+
         return Etime
 
-    # --- 3. Main Calculation Loop ---
-    strain_min = 1e-25
-    num_steps = 500
-    results_data = {} # For CSV
+    # --- 3. Prepare Parameter List (abcd_parameters) ---
+    # We construct the list [ [Temp, a, b, c, d], ... ] based on session state
+    abcd_parameters = []
     
-    # Setup Plot
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.serif"] = ["Times New Roman"]
-    
-    fig = Figure(figsize=(12, 8))
-    ax = fig.add_subplot(111)
-    
-    colors = [c for c in list(mcolors.CSS4_COLORS.values()) if is_dark_color(c)]
-    
-    # Progress Bar setup
-    total_iterations = len(avail_temps) * len(strain_rates_to_plot)
-    progress_bar = st.progress(0, text="Starting Simulation...")
-    current_iter = 0
+    avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+    master = st.session_state.fitted_params
 
-    with st.spinner("Calculating Stress-Strain curves..."):
-        for t_idx, temp in enumerate(avail_temps):
-            
-            # Get Parameters for this Temperature
-            params = {}
-            if st.session_state.param_per_temp is not None:
-                row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == temp]
-                if not row.empty:
-                    params = row.iloc[0].to_dict()
-            
-            if not params:
-                master = st.session_state.fitted_params
-                sf = st.session_state.analysis_shift_factors.get(temp, 1.0)
-                params = master.copy()
-                params['c'] = master['c'] + np.log10(sf)
+    for temp in avail_temps:
+        # If "Params per temp" exists, use those. Else use Master + Shift
+        if st.session_state.param_per_temp is not None:
+            row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == temp]
+            if not row.empty:
+                p = row.iloc[0].to_dict()
+                abcd_parameters.append([temp, p['a'], p['b'], p['c'], p['d']])
+                continue
+        
+        # Fallback to master shift
+        sf = st.session_state.analysis_shift_factors.get(temp, 1.0)
+        # Note: Scheme uses np.log inside E_prime. 
+        # Standard TTS shift is usually log10. Assuming consistency with fitted params:
+        c_shifted = master['c'] + np.log10(sf) 
+        abcd_parameters.append([temp, master['a'], master['b'], c_shifted, master['d']])
 
-            # Assign a specific color/shade for this temperature group?
-            # Or cycle through colors for every line. 
-            # To make it readable, we might want same color for same temp, different linestyle for rate.
-            temp_color = colors[t_idx % len(colors)]
-            
-            for r_idx, rate in enumerate(strain_rates_to_plot):
+    # --- 4. Main Calculation Loop ---
+    results = []
+    
+    # Progress Bar
+    total_ops = len(abcd_parameters) * len(strain_rates_to_plot)
+    progress_bar = st.progress(0, text="Calculating Modulus...")
+    current_op = 0
+
+    with st.spinner("Integrating... this may take a moment."):
+        for params in abcd_parameters:
+            ref_temp, a, b, c, d = params
+            final_cumulative_integrals = []
+
+            for rate in strain_rates_to_plot:
                 # Update Progress
-                current_iter += 1
-                progress_bar.progress(int(current_iter / total_iterations * 100), 
-                                      text=f"Processing {temp}°C | Rate {rate}")
+                current_op += 1
+                progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Rate {rate}")
 
-                # Time setup
+                # Calculate Time Range
                 time_min_rate = strain_min / rate
                 time_max_rate = strain_max / rate
                 time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
-                
+
                 # Calculate E(t)
-                E_t = Etime_time_cycle(time_range_rate, params, cycle=500)
+                E_t_time_range_rate = Etime_time_cycle(time_range_rate, 500, a, b, c, d)
+
+                # Multiply E(t) by strain rate -> Stress History
+                Stress_history_rate = E_t_time_range_rate * rate
+
+                # Cumulative Integral (Stress)
+                # We calculate the full array to get the final point
+                cumulative_integral_stress_history_rate = np.array([simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1]) for i in range(len(time_range_rate))])
                 
-                # Calculate Stress History
-                Stress_history_rate = E_t / 2 * rate
+                # Get Final Modulus: Stress_final / Strain_max
+                final_modulus = cumulative_integral_stress_history_rate[-1] / strain_max
                 
-                # Cumulative Integral for Stress
-                stress_vals = []
-                for i in range(len(time_range_rate)):
-                    if i == 0:
-                        stress_vals.append(0)
-                    else:
-                        val = simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1])
-                        stress_vals.append(val)
-                
-                cumulative_integral = np.array(stress_vals)
-                strain_range_rate = time_range_rate * rate
-                
-                # Plotting
-                # Dashed lines for faster rates, Solid for slower? Or just simple legend.
-                # Let's use alpha or linestyle to distinguish rates if needed.
-                linestyles = ['-', '--', '-.', ':']
-                ls = linestyles[r_idx % len(linestyles)]
-                
-                label_txt = f"{temp}°C, {rate:.0e}/s"
-                ax.plot(strain_range_rate, cumulative_integral, 
-                        label=label_txt, color=temp_color, linestyle=ls, linewidth=1.5)
-                
-                # Store Data
-                results_data[f"Strain_T{temp}_R{rate}"] = strain_range_rate
-                results_data[f"Stress_T{temp}_R{rate}"] = cumulative_integral
+                final_cumulative_integrals.append(final_modulus)
+
+            # Append results for current temp
+            results.append([ref_temp] + final_cumulative_integrals)
 
     progress_bar.empty()
 
-    # --- 4. Finalize Plot ---
-    ax.set_xlabel("Strain (1)", fontsize=16)
-    ax.set_ylabel("Stress (MPa)", fontsize=16)
-    ax.set_title(f"Stress vs Strain (All Temperatures)", fontsize=18)
-    ax.tick_params(axis='both', which='major', labelsize=12)
-    
-    ax.set_ylim(bottom=0)
-    ax.set_xlim(left=0)
-    
-    # Legend might be large, place it outside
-    ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=10, ncol=1)
-    ax.grid(True, which="both", ls="--", alpha=0.4)
-    add_watermark(ax)
-    
-    # --- 5. Output & Downloads ---
-    st.pyplot(fig)
-    
-    # Buffers
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches='tight', dpi=500)
-    buf.seek(0)
-    
-    # CSV - Pad with NaNs if lengths differ (unlikely here as steps=500 fixed)
-    # Using dict directly creates a DataFrame where keys are columns
-    df_export = pd.DataFrame(dict([ (k, pd.Series(v)) for k,v in results_data.items() ]))
-    csv_buf = df_export.to_csv(index=False).encode('utf-8')
+    # Create DataFrame
+    cols = ['Ref Temp (°C)'] + [f'Strain Rate {rate} (1/s)' for rate in strain_rates_to_plot]
+    df = pd.DataFrame(results, columns=cols)
 
-    # Layout Buttons
-    buff_col, csv_col, img_col = st.columns([4, 2, 2]) 
+    # --- 5. Visualization ---
     
-    with csv_col:
-        st.download_button(
-            label="📄 Download CSV",
-            data=csv_buf,
-            file_name=f"Stress_Strain_AllTemps.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+    # Global Plot Settings
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["font.serif"] = ["Times New Roman"]
+    
+    tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
+
+    # --- Plot 1: Modulus vs Strain Rate ---
+    with tab1:
+        fig1 = Figure(figsize=(12, 6))
+        ax1 = fig1.add_subplot(111)
         
-    with img_col:
-        st.download_button(
-            label="💾 Download Graph",
-            data=buf,
-            file_name=f"Stress_Strain_AllTemps.png",
-            mime="image/png",
-            use_container_width=True
-        )
+        for i, row in df.iterrows():
+            # row[0] is Temp, row[1:] are rates
+            ax1.plot(strain_rates_to_plot, row[1:], marker='o', label=f"{row['Ref Temp (°C)']}°C")
+
+        ax1.set_xscale('log')
+        ax1.set_xlabel('Strain Rate (1/s)', fontsize=20)
+        ax1.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+        ax1.tick_params(axis='both', which='major', labelsize=14) # Adjusted slightly for web
+        ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
+        ax1.set_title('Modulus vs Strain Rate for Different Temperatures', fontsize=20)
+        ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+        ax1.grid(True, which="both", ls="--", alpha=0.4)
+        add_watermark(ax1)
+        st.pyplot(fig1)
+        
+        # Download Button 1
+        buf1 = io.BytesIO()
+        fig1.savefig(buf1, format="png", bbox_inches='tight', dpi=500)
+        buf1.seek(0)
+        st.download_button("💾 Download Plot 1", buf1, "Modulus_vs_Rate.png", "image/png")
+
+    # --- Plot 2: Modulus vs Temperature ---
+    with tab2:
+        fig2 = Figure(figsize=(12, 6))
+        ax2 = fig2.add_subplot(111)
+        
+        # Iterating columns (excluding the first one which is Temp)
+        for j, rate in enumerate(strain_rates_to_plot):
+            # df.iloc[:, 0] is X (Temp)
+            # df.iloc[:, j+1] is Y (Modulus for that rate)
+            ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], marker='s', label=f"Rate {rate} (1/s)")
+
+        ax2.set_xlabel('Temperature (°C)', fontsize=20)
+        ax2.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+        ax2.set_title('Modulus vs Temperature for Different Strain Rates', fontsize=20)
+        ax2.tick_params(axis='both', which='major', labelsize=14)
+        ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+        ax2.grid(True, which="both", ls="--", alpha=0.4)
+        add_watermark(ax2)
+        st.pyplot(fig2)
+        
+        # Download Button 2
+        buf2 = io.BytesIO()
+        fig2.savefig(buf2, format="png", bbox_inches='tight', dpi=500)
+        buf2.seek(0)
+        st.download_button("💾 Download Plot 2", buf2, "Modulus_vs_Temp.png", "image/png")
+
+    # --- Data Table ---
+    with tab3:
+        st.dataframe(df)
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
 # ==========================================
 # Main Navigation
 # ==========================================
@@ -886,6 +1092,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
