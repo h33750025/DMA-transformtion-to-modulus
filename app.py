@@ -870,6 +870,183 @@ def page_params_per_temp():
 
 
 #===========================================
+# def page_elastic_modulus():
+#     st.title("Step 5: Elastic Modulus Prediction")
+#     st.markdown(r"Predicts **Elastic Modulus ($E$)** using numerical integration of the stress history.")
+
+#     # --- Check Prerequisites ---
+#     if st.session_state.fitted_params is None: 
+#         return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
+
+#     # --- 0. Robust Imports (Fixes for SciPy 1.13+ and NumPy 2.0+) ---
+#     # Fix for Simpson's rule
+#     try:
+#         from scipy.integrate import simpson
+#     except ImportError:
+#         from scipy.integrate import simps as simpson
+        
+#     # Fix for Trapezoidal rule (NumPy 2.0 compat)
+#     if hasattr(np, 'trapezoid'):
+#         trapz_func = np.trapezoid
+#     else:
+#         trapz_func = np.trapz
+
+#     # --- 1. Simulation Controls ---
+#     strain_rates_to_plot = [1e-5, 1e-4, 1e-3, 1e-2]
+#     strain_min = 1e-25
+#     strain_max = 0.0025
+#     num_steps = 500
+    
+#     #st.info(f"Settings: Strain Rates = {strain_rates_to_plot} | Max Strain = {strain_max}")
+    
+#     run_sim = st.button("Run", type="primary")
+
+#     if not run_sim:
+#         return
+
+#     # --- 2. Define Calculation Functions ---
+    
+#     def E_prime(w, a, b, c, d):
+#         return a * np.tanh(b * ((np.log(w)) + c)) + d
+
+#     def Etime_time_cycle(time, cycle, a, b, c, d):
+#         N1, N2, N3 = 240, 74, 24
+#         Etime = np.zeros_like(time)
+
+#         def integrand(t, E_prime_w, w):
+#             return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
+
+#         for i, t in enumerate(time):
+#             if t == 0: continue
+            
+#             w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
+#             w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
+#             w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
+
+#             all_w = np.concatenate([w1, w2[1:], w3[1:]])
+            
+#             y = integrand(t, E_prime(all_w, a, b, c, d), all_w)
+
+#             # --- USE COMPATIBLE TRAPZ FUNCTION ---
+#             Etime[i] = trapz_func(y, all_w)
+#             # -------------------------------------
+
+#         return Etime
+
+#     # --- 3. Prepare Parameter List ---
+#     abcd_parameters = []
+#     avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+#     master = st.session_state.fitted_params
+
+#     for temp in avail_temps:
+#         if st.session_state.param_per_temp is not None:
+#             row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == temp]
+#             if not row.empty:
+#                 p = row.iloc[0].to_dict()
+#                 abcd_parameters.append([temp, p['a'], p['b'], p['c'], p['d']])
+#                 continue
+        
+#         sf = st.session_state.analysis_shift_factors.get(temp, 1.0)
+#         c_shifted = master['c'] + np.log10(sf) 
+#         abcd_parameters.append([temp, master['a'], master['b'], c_shifted, master['d']])
+
+#     # --- 4. Main Calculation Loop ---
+#     results = []
+#     total_ops = len(abcd_parameters) * len(strain_rates_to_plot)
+#     progress_bar = st.progress(0, text="Calculating Modulus...")
+#     current_op = 0
+
+#     with st.spinner("Integrating... this may take a moment."):
+#         for params in abcd_parameters:
+#             ref_temp, a, b, c, d = params
+#             final_cumulative_integrals = []
+
+#             for rate in strain_rates_to_plot:
+#                 current_op += 1
+#                 progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Rate {rate}")
+
+#                 time_min_rate = strain_min / rate
+#                 time_max_rate = strain_max / rate
+#                 time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
+
+#                 # Pass parameters into the time cycle function
+#                 E_t_time_range_rate = Etime_time_cycle(time_range_rate, 500, a, b, c, d)
+
+#                 Stress_history_rate = E_t_time_range_rate * rate
+
+#                 # Use robust simpson import
+#                 cumulative_integral_stress_history_rate = np.array([
+#                     simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1]) 
+#                     for i in range(len(time_range_rate))
+#                 ])
+                
+#                 final_modulus = cumulative_integral_stress_history_rate[-1] / strain_max
+#                 final_cumulative_integrals.append(final_modulus)
+
+#             results.append([ref_temp] + final_cumulative_integrals)
+
+#     progress_bar.empty()
+
+#     # Create DataFrame
+#     cols = ['Ref Temp (°C)'] + [f'Strain Rate {rate} (1/s)' for rate in strain_rates_to_plot]
+#     df = pd.DataFrame(results, columns=cols)
+
+#     # --- 5. Visualization ---
+    
+#     # Global Plot Settings
+#     plt.rcParams["font.family"] = "serif"
+#     plt.rcParams["font.serif"] = ["Times New Roman"]
+    
+#     tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
+
+#     with tab1:
+#         fig1 = Figure(figsize=(10, 6))
+#         ax1 = fig1.add_subplot(111)
+#         for i, row in df.iterrows():
+#             ax1.plot(strain_rates_to_plot, row[1:], marker='o', label=f"{row['Ref Temp (°C)']}°C")
+
+#         ax1.set_xscale('log')
+#         ax1.set_xlabel('Strain Rate (1/s)', fontsize=20)
+#         ax1.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+#         ax1.set_ylim(bottom=0)
+#         ax1.tick_params(axis='both', which='major', labelsize=14)
+#         ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
+#         ax1.set_title('Modulus vs Strain Rate for Different Temperatures', fontsize=20)
+#         ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+#         add_watermark(ax1)
+#         st.pyplot(fig1)
+        
+#         buf1 = io.BytesIO()
+#         fig1.savefig(buf1, format="png", bbox_inches='tight', dpi=500)
+#         buf1.seek(0)
+#         st.download_button("💾 Download Plot 1", buf1, "Modulus_vs_Rate.png", "image/png")
+
+#     with tab2:
+#         fig2 = Figure(figsize=(10, 6))
+#         ax2 = fig2.add_subplot(111)
+#         for j, rate in enumerate(strain_rates_to_plot):
+#             ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], marker='s', label=f"Rate {rate} (1/s)")
+
+#         ax2.set_xlabel('Temperature (°C)', fontsize=20)
+#         ax2.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+#         ax2.set_ylim(bottom=0)
+#         ax2.set_title('Modulus vs Temperature for Different Strain Rates', fontsize=20)
+#         ax2.tick_params(axis='both', which='major', labelsize=14)
+#         ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+#         add_watermark(ax2)
+#         st.pyplot(fig2)
+        
+#         buf2 = io.BytesIO()
+#         fig2.savefig(buf2, format="png", bbox_inches='tight', dpi=500)
+#         buf2.seek(0)
+#         st.download_button("💾 Download Plot 2", buf2, "Modulus_vs_Temp.png", "image/png")
+
+#     with tab3:
+#         st.dataframe(df)
+#         csv = df.to_csv(index=False).encode('utf-8')
+#         st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
+
+#=================================================================
 def page_elastic_modulus():
     st.title("Step 5: Elastic Modulus Prediction")
     st.markdown(r"Predicts **Elastic Modulus ($E$)** using numerical integration of the stress history.")
@@ -879,13 +1056,11 @@ def page_elastic_modulus():
         return st.warning("Please Run Step 3 (Curve Fitting) first to get model parameters.")
 
     # --- 0. Robust Imports (Fixes for SciPy 1.13+ and NumPy 2.0+) ---
-    # Fix for Simpson's rule
     try:
         from scipy.integrate import simpson
     except ImportError:
         from scipy.integrate import simps as simpson
         
-    # Fix for Trapezoidal rule (NumPy 2.0 compat)
     if hasattr(np, 'trapezoid'):
         trapz_func = np.trapezoid
     else:
@@ -897,152 +1072,148 @@ def page_elastic_modulus():
     strain_max = 0.0025
     num_steps = 500
     
-    #st.info(f"Settings: Strain Rates = {strain_rates_to_plot} | Max Strain = {strain_max}")
-    
-    run_sim = st.button("Run", type="primary")
+    # Initialize Session State for Results if not present
+    if 'modulus_results_df' not in st.session_state:
+        st.session_state.modulus_results_df = None
 
-    if not run_sim:
-        return
+    # Run Button
+    run_sim = st.button("Run Simulation", type="primary")
 
-    # --- 2. Define Calculation Functions ---
-    
-    def E_prime(w, a, b, c, d):
-        return a * np.tanh(b * ((np.log(w)) + c)) + d
+    # --- 2. Calculation Logic (Runs ONLY if Button Clicked) ---
+    if run_sim:
+        # Define internal functions
+        def E_prime(w, a, b, c, d):
+            return a * np.tanh(b * ((np.log(w)) + c)) + d
 
-    def Etime_time_cycle(time, cycle, a, b, c, d):
-        N1, N2, N3 = 240, 74, 24
-        Etime = np.zeros_like(time)
-
-        def integrand(t, E_prime_w, w):
-            return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
-
-        for i, t in enumerate(time):
-            if t == 0: continue
+        def Etime_time_cycle(time, cycle, a, b, c, d):
+            N1, N2, N3 = 240, 74, 24
+            Etime = np.zeros_like(time)
+            def integrand(t, E_prime_w, w):
+                return (2/np.pi)*(E_prime_w/w)*np.sin(w*t)
             
-            w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
-            w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
-            w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
+            for i, t in enumerate(time):
+                if t == 0: continue
+                w1 = np.linspace((1e-6 / t), (cycle * 0.1 * 2 * np.pi / t), int(cycle * 0.1 * N1 + 1))
+                w2 = np.linspace((cycle * 0.1 * 2 * np.pi) / t, (cycle * 0.4 * 2 * np.pi) / t, int(cycle * 0.3 * N2 + 1))
+                w3 = np.linspace((cycle * 0.4 * 2 * np.pi) / t, (cycle * 2 * np.pi) / t, int(cycle * 0.6 * N3 + 1))
+                all_w = np.concatenate([w1, w2[1:], w3[1:]])
+                y = integrand(t, E_prime(all_w, a, b, c, d), all_w)
+                Etime[i] = trapz_func(y, all_w)
+            return Etime
 
-            all_w = np.concatenate([w1, w2[1:], w3[1:]])
+        # Prepare Params
+        abcd_parameters = []
+        avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
+        master = st.session_state.fitted_params
+
+        for temp in avail_temps:
+            if st.session_state.param_per_temp is not None:
+                row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == temp]
+                if not row.empty:
+                    p = row.iloc[0].to_dict()
+                    abcd_parameters.append([temp, p['a'], p['b'], p['c'], p['d']])
+                    continue
+            sf = st.session_state.analysis_shift_factors.get(temp, 1.0)
+            c_shifted = master['c'] + np.log10(sf) 
+            abcd_parameters.append([temp, master['a'], master['b'], c_shifted, master['d']])
+
+        # Main Calculation Loop
+        results = []
+        total_ops = len(abcd_parameters) * len(strain_rates_to_plot)
+        progress_bar = st.progress(0, text="Calculating Modulus...")
+        current_op = 0
+
+        with st.spinner("Integrating... this may take a moment."):
+            for params in abcd_parameters:
+                ref_temp, a, b, c, d = params
+                final_cumulative_integrals = []
+
+                for rate in strain_rates_to_plot:
+                    current_op += 1
+                    progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Rate {rate}")
+
+                    time_min_rate = strain_min / rate
+                    time_max_rate = strain_max / rate
+                    time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
+
+                    E_t_time_range_rate = Etime_time_cycle(time_range_rate, 500, a, b, c, d)
+                    Stress_history_rate = E_t_time_range_rate * rate
+
+                    cumulative_integral = np.array([
+                        simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1]) 
+                        for i in range(len(time_range_rate))
+                    ])
+                    
+                    final_modulus = cumulative_integral[-1] / strain_max
+                    final_cumulative_integrals.append(final_modulus)
+
+                results.append([ref_temp] + final_cumulative_integrals)
+
+        progress_bar.empty()
+        
+        # Save to Session State
+        cols = ['Ref Temp (°C)'] + [f'Strain Rate {rate} (1/s)' for rate in strain_rates_to_plot]
+        st.session_state.modulus_results_df = pd.DataFrame(results, columns=cols)
+
+    # --- 3. Visualization (Runs if Data Exists in Session State) ---
+    if st.session_state.modulus_results_df is not None:
+        df = st.session_state.modulus_results_df
+        
+        # Global Plot Settings
+        plt.rcParams["font.family"] = "serif"
+        plt.rcParams["font.serif"] = ["Times New Roman"]
+        
+        tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
+
+        with tab1:
+            fig1 = Figure(figsize=(10, 6))
+            ax1 = fig1.add_subplot(111)
+            for i, row in df.iterrows():
+                ax1.plot(strain_rates_to_plot, row[1:], marker='o', label=f"{row['Ref Temp (°C)']}°C")
+
+            ax1.set_xscale('log')
+            ax1.set_xlabel('Strain Rate (1/s)', fontsize=20)
+            ax1.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+            ax1.set_ylim(bottom=0)
+            ax1.tick_params(axis='both', which='major', labelsize=14)
+            ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
+            ax1.set_title('Modulus vs Strain Rate for Different Temperatures', fontsize=20)
+            ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+            add_watermark(ax1)
+            st.pyplot(fig1)
             
-            y = integrand(t, E_prime(all_w, a, b, c, d), all_w)
+            buf1 = io.BytesIO()
+            fig1.savefig(buf1, format="png", bbox_inches='tight', dpi=500)
+            buf1.seek(0)
+            st.download_button("💾 Download Plot 1", buf1, "Modulus_vs_Rate.png", "image/png")
 
-            # --- USE COMPATIBLE TRAPZ FUNCTION ---
-            Etime[i] = trapz_func(y, all_w)
-            # -------------------------------------
+        with tab2:
+            fig2 = Figure(figsize=(10, 6))
+            ax2 = fig2.add_subplot(111)
+            for j, rate in enumerate(strain_rates_to_plot):
+                ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], marker='s', label=f"Rate {rate} (1/s)")
 
-        return Etime
+            ax2.set_xlabel('Temperature (°C)', fontsize=20)
+            ax2.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
+            ax2.set_ylim(bottom=0)
+            ax2.set_title('Modulus vs Temperature for Different Strain Rates', fontsize=20)
+            ax2.tick_params(axis='both', which='major', labelsize=14)
+            ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
+            add_watermark(ax2)
+            st.pyplot(fig2)
+            
+            buf2 = io.BytesIO()
+            fig2.savefig(buf2, format="png", bbox_inches='tight', dpi=500)
+            buf2.seek(0)
+            st.download_button("💾 Download Plot 2", buf2, "Modulus_vs_Temp.png", "image/png")
 
-    # --- 3. Prepare Parameter List ---
-    abcd_parameters = []
-    avail_temps = sorted(st.session_state.analysis_shift_factors.keys())
-    master = st.session_state.fitted_params
-
-    for temp in avail_temps:
-        if st.session_state.param_per_temp is not None:
-            row = st.session_state.param_per_temp.loc[st.session_state.param_per_temp['Temperature'] == temp]
-            if not row.empty:
-                p = row.iloc[0].to_dict()
-                abcd_parameters.append([temp, p['a'], p['b'], p['c'], p['d']])
-                continue
-        
-        sf = st.session_state.analysis_shift_factors.get(temp, 1.0)
-        c_shifted = master['c'] + np.log10(sf) 
-        abcd_parameters.append([temp, master['a'], master['b'], c_shifted, master['d']])
-
-    # --- 4. Main Calculation Loop ---
-    results = []
-    total_ops = len(abcd_parameters) * len(strain_rates_to_plot)
-    progress_bar = st.progress(0, text="Calculating Modulus...")
-    current_op = 0
-
-    with st.spinner("Integrating... this may take a moment."):
-        for params in abcd_parameters:
-            ref_temp, a, b, c, d = params
-            final_cumulative_integrals = []
-
-            for rate in strain_rates_to_plot:
-                current_op += 1
-                progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Rate {rate}")
-
-                time_min_rate = strain_min / rate
-                time_max_rate = strain_max / rate
-                time_range_rate = np.linspace(time_min_rate, time_max_rate, num_steps)
-
-                # Pass parameters into the time cycle function
-                E_t_time_range_rate = Etime_time_cycle(time_range_rate, 500, a, b, c, d)
-
-                Stress_history_rate = E_t_time_range_rate * rate
-
-                # Use robust simpson import
-                cumulative_integral_stress_history_rate = np.array([
-                    simpson(Stress_history_rate[:i+1], x=time_range_rate[:i+1]) 
-                    for i in range(len(time_range_rate))
-                ])
-                
-                final_modulus = cumulative_integral_stress_history_rate[-1] / strain_max
-                final_cumulative_integrals.append(final_modulus)
-
-            results.append([ref_temp] + final_cumulative_integrals)
-
-    progress_bar.empty()
-
-    # Create DataFrame
-    cols = ['Ref Temp (°C)'] + [f'Strain Rate {rate} (1/s)' for rate in strain_rates_to_plot]
-    df = pd.DataFrame(results, columns=cols)
-
-    # --- 5. Visualization ---
-    
-    # Global Plot Settings
-    plt.rcParams["font.family"] = "serif"
-    plt.rcParams["font.serif"] = ["Times New Roman"]
-    
-    tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
-
-    with tab1:
-        fig1 = Figure(figsize=(10, 6))
-        ax1 = fig1.add_subplot(111)
-        for i, row in df.iterrows():
-            ax1.plot(strain_rates_to_plot, row[1:], marker='o', label=f"{row['Ref Temp (°C)']}°C")
-
-        ax1.set_xscale('log')
-        ax1.set_xlabel('Strain Rate (1/s)', fontsize=20)
-        ax1.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
-        ax1.tick_params(axis='both', which='major', labelsize=14)
-        ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
-        ax1.set_title('Modulus vs Strain Rate for Different Temperatures', fontsize=20)
-        ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
-        add_watermark(ax1)
-        st.pyplot(fig1)
-        
-        buf1 = io.BytesIO()
-        fig1.savefig(buf1, format="png", bbox_inches='tight', dpi=500)
-        buf1.seek(0)
-        st.download_button("💾 Download Plot 1", buf1, "Modulus_vs_Rate.png", "image/png")
-
-    with tab2:
-        fig2 = Figure(figsize=(10, 6))
-        ax2 = fig2.add_subplot(111)
-        for j, rate in enumerate(strain_rates_to_plot):
-            ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], marker='s', label=f"Rate {rate} (1/s)")
-
-        ax2.set_xlabel('Temperature (°C)', fontsize=20)
-        ax2.set_ylabel('Elastic Modulus (MPa)', fontsize=20)
-        ax2.set_title('Modulus vs Temperature for Different Strain Rates', fontsize=20)
-        ax2.tick_params(axis='both', which='major', labelsize=14)
-        ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
-        add_watermark(ax2)
-        st.pyplot(fig2)
-        
-        buf2 = io.BytesIO()
-        fig2.savefig(buf2, format="png", bbox_inches='tight', dpi=500)
-        buf2.seek(0)
-        st.download_button("💾 Download Plot 2", buf2, "Modulus_vs_Temp.png", "image/png")
-
-    with tab3:
-        st.dataframe(df)
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
+        with tab3:
+            st.dataframe(df)
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
+            
+    else:
+        st.info("Click 'Run Simulation' to start calculations.")
 # ==========================================
 # Main Navigation
 # ==========================================
@@ -1062,6 +1233,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
