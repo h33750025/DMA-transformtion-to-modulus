@@ -892,14 +892,14 @@ def page_elastic_modulus():
         trapz_func = np.trapz
 
     # --- 1. Simulation Controls ---
-    strain_rates_to_plot = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+    strain_rates_to_plot = [1e-5, 1e-4, 1e-3, 1e-2]
     strain_min = 1e-25
     strain_max = 0.0025
     num_steps = 500
     
-    st.info(f"Settings: Strain Rates = {strain_rates_to_plot} | Max Strain = {strain_max}")
+    #st.info(f"Settings: Strain Rates = {strain_rates_to_plot} | Max Strain = {strain_max}")
     
-    run_sim = st.button("Run Simulation (All Temperatures)", type="primary")
+    run_sim = st.button("Run", type="primary")
 
     if not run_sim:
         return
@@ -1000,7 +1000,7 @@ def page_elastic_modulus():
     tab1, tab2, tab3 = st.tabs(["📈 Modulus vs Rate", "🌡️ Modulus vs Temp", "📄 Data Table"])
 
     with tab1:
-        fig1 = Figure(figsize=(12, 6))
+        fig1 = Figure(figsize=(10, 6))
         ax1 = fig1.add_subplot(111)
         for i, row in df.iterrows():
             ax1.plot(strain_rates_to_plot, row[1:], marker='o', label=f"{row['Ref Temp (°C)']}°C")
@@ -1012,7 +1012,6 @@ def page_elastic_modulus():
         ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
         ax1.set_title('Modulus vs Strain Rate for Different Temperatures', fontsize=20)
         ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
-        ax1.grid(True, which="both", ls="--", alpha=0.4)
         add_watermark(ax1)
         st.pyplot(fig1)
         
@@ -1022,7 +1021,7 @@ def page_elastic_modulus():
         st.download_button("💾 Download Plot 1", buf1, "Modulus_vs_Rate.png", "image/png")
 
     with tab2:
-        fig2 = Figure(figsize=(12, 6))
+        fig2 = Figure(figsize=(10, 6))
         ax2 = fig2.add_subplot(111)
         for j, rate in enumerate(strain_rates_to_plot):
             ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], marker='s', label=f"Rate {rate} (1/s)")
@@ -1032,7 +1031,6 @@ def page_elastic_modulus():
         ax2.set_title('Modulus vs Temperature for Different Strain Rates', fontsize=20)
         ax2.tick_params(axis='both', which='major', labelsize=14)
         ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left', fontsize=12)
-        ax2.grid(True, which="both", ls="--", alpha=0.4)
         add_watermark(ax2)
         st.pyplot(fig2)
         
@@ -1064,6 +1062,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
