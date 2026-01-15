@@ -722,7 +722,7 @@ def page_elastic_modulus():
 
                 for rate in strain_rates_to_plot:
                     current_op += 1
-                    progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Rate {rate}")
+                    progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Strain Rate {rate} ($s^{-1}$)")
 
                     time_min_rate = strain_min / rate
                     time_max_rate = strain_max / rate
@@ -787,23 +787,6 @@ def page_elastic_modulus():
             buf1.seek(0)
             st.download_button("💾 Download Graph", buf1, "Modulus_vs_Strain_Rate.png", "image/png")
 
-        # with tab2:
-        #     fig2 = Figure(figsize=(10, 6))
-        #     ax2 = fig2.add_subplot(111)
-        #     for j, rate in enumerate(strain_rates_to_plot):
-        #         ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], label=f"Rate {rate} (1/s)")
-
-        #     ax2.set_xlabel('Temperature (°C)')
-        #     ax2.set_ylabel('Elastic Modulus (MPa)')
-        #     # --- CONDITIONAL LIMIT ---
-        #     if has_negative_values:
-        #         ax2.set_ylim(bottom=0)
-        #     # -------------------------
-        #     ax2.set_title('Modulus vs Temperature for Different Strain Rates')
-        #     ax2.tick_params(axis='both', which='major')
-        #     ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
-        #     add_watermark(ax2)
-        #     st.pyplot(fig2)
         with tab2:
             fig2 = Figure(figsize=(10, 6))
             ax2 = fig2.add_subplot(111)
@@ -1072,6 +1055,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
