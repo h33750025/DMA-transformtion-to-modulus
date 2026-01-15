@@ -642,7 +642,6 @@ def page_params_per_temp():
 #=================================================================
 def page_elastic_modulus():
     st.title("Step 4: Elastic Modulus Prediction")
-    #st.markdown(r"**Elastic Modulus ($E$)** .")
 
     # --- Check Prerequisites ---
     if st.session_state.fitted_params is None: 
@@ -663,7 +662,7 @@ def page_elastic_modulus():
     strain_rates_to_plot = [1e-5, 1e-4, 1e-3, 1e-2]
     strain_min = 1e-25
     strain_max = 0.0025
-    num_steps = 500
+    num_steps = 200
     
     # Initialize Session State for Results if not present
     if 'modulus_results_df' not in st.session_state:
@@ -788,21 +787,54 @@ def page_elastic_modulus():
             buf1.seek(0)
             st.download_button("💾 Download Graph", buf1, "Modulus_vs_Strain_Rate.png", "image/png")
 
+        # with tab2:
+        #     fig2 = Figure(figsize=(10, 6))
+        #     ax2 = fig2.add_subplot(111)
+        #     for j, rate in enumerate(strain_rates_to_plot):
+        #         ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], label=f"Rate {rate} (1/s)")
+
+        #     ax2.set_xlabel('Temperature (°C)')
+        #     ax2.set_ylabel('Elastic Modulus (MPa)')
+        #     # --- CONDITIONAL LIMIT ---
+        #     if has_negative_values:
+        #         ax2.set_ylim(bottom=0)
+        #     # -------------------------
+        #     ax2.set_title('Modulus vs Temperature for Different Strain Rates')
+        #     ax2.tick_params(axis='both', which='major')
+        #     ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+        #     add_watermark(ax2)
+        #     st.pyplot(fig2)
         with tab2:
             fig2 = Figure(figsize=(10, 6))
             ax2 = fig2.add_subplot(111)
+
             for j, rate in enumerate(strain_rates_to_plot):
-                ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], label=f"Rate {rate} (1/s)")
+                # Calculate the exponent (e.g., -5 for 1e-5)
+                exponent = int(np.log10(rate))
+                # Create a LaTeX formatted label: $10^{-5}$
+                label_text = f"$10^{{{exponent}}}$"
+                
+                ax2.plot(df['Ref Temp (°C)'], df.iloc[:, j+1], label=label_text)
 
             ax2.set_xlabel('Temperature (°C)')
             ax2.set_ylabel('Elastic Modulus (MPa)')
+            
             # --- CONDITIONAL LIMIT ---
             if has_negative_values:
                 ax2.set_ylim(bottom=0)
             # -------------------------
+            
             ax2.set_title('Modulus vs Temperature for Different Strain Rates')
             ax2.tick_params(axis='both', which='major')
-            ax2.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+            
+            # --- MODIFIED LEGEND ---
+            # Added 'title' and adjusted formatting
+            ax2.legend(
+                bbox_to_anchor=(1.01, 1), 
+                loc='upper left', 
+                title="Strain Rate ($s^{-1}$)"
+            )
+            
             add_watermark(ax2)
             st.pyplot(fig2)
             
@@ -1040,6 +1072,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
