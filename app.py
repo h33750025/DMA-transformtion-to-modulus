@@ -794,8 +794,6 @@ def page_elastic_modulus():
                     mime="image/png",
                     use_container_width=True
                 )
-            #st.download_button("💾 Download Graph", buf1, "Modulus_vs_Strain_Rate.png", "image/png")
-
         with tab2:
             fig2 = Figure(figsize=(10, 6))
             ax2 = fig2.add_subplot(111)
@@ -833,12 +831,29 @@ def page_elastic_modulus():
             buf2 = io.BytesIO()
             fig2.savefig(buf2, format="png", bbox_inches='tight', dpi=500)
             buf2.seek(0)
-            st.download_button("💾 Download Graph", buf2, "Modulus_vs_Temp.png", "image/png")
+            buff_col, button_col = st.columns([5, 2]) 
+            with button_col:
+                st.download_button(
+                    label="💾 Download Graph",
+                    data=buf2,
+                    file_name="Modulus_vs_Temp.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
 
         with tab3:
             st.dataframe(df)
             csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
+            buff_col, button_col = st.columns([5, 2]) 
+            with button_col:
+                st.download_button(
+                    label="📄 Download Results (CSV)",
+                    data=csv,
+                    file_name="Modulus_Simulation_Results.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            #st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
             
     else:
         st.info("Click 'Run Prediction' to start calculations.")
@@ -1064,6 +1079,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
