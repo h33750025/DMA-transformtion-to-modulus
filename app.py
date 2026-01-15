@@ -992,21 +992,6 @@ def page_elastic_modulus():
 # ==========================================
 # Main Navigation
 # ==========================================
-# def main():
-#     st.sidebar.title("NYU-ViscoMOD")
-    
-#     pages = {
-#         "1. Load & Visualize": page_load_and_visualize,
-#         #"2. Master Curve": page_tts,#
-#         "2. Curve Fitting": page_fitting,
-#         "3. Master Curves Fitting": page_params_per_temp,
-#         #"4. Stress-Strain Curve": page_stress_strain_curve,#
-#         "4. Elastic Modulus": page_elastic_modulus
-#     }
-    
-#     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
-#     pages[selection]()
-
 def main():
     st.sidebar.title("NYU-ViscoMOD")
     
@@ -1022,9 +1007,9 @@ def main():
     
     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
     
-    # --- 2. Add Download Button to Sidebar ---
-    st.sidebar.markdown("---") # Add a separator line
-    st.sidebar.markdown("### User Manual")
+    # --- 2. Sidebar Resources (Manual & Template) ---
+    st.sidebar.markdown("---") 
+    st.sidebar.markdown("### Help & Resources")
     
     # Try/Except block ensures the app doesn't crash if the file is missing
     try:
@@ -1037,12 +1022,25 @@ def main():
             )
     except FileNotFoundError:
         st.sidebar.warning("Manual file not found.")
-
+        
+    # B. Template Download
+    # (Ensure 'data_template.csv' exists in your folder)
+    try:
+        with open("data_template.csv", "rb") as f:
+            st.sidebar.download_button(
+                label="📊 Download Data Template",
+                data=f,
+                file_name="data_template.csv",
+                mime="text/csv"
+            )
+    except FileNotFoundError:
+        st.sidebar.caption("⚠️ Template not found")
     # --- 3. Render Selected Page ---
     pages[selection]()
 
 if __name__ == "__main__":
     main()
+
 
 
 
