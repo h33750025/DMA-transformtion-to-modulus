@@ -1015,7 +1015,7 @@ def main():
     try:
         with open("manual.pdf", "rb") as f:
             st.sidebar.download_button(
-                label="📄 Download User Manual",
+                label="📄User Manual",
                 data=f,
                 file_name="NYU_ViscoMOD_Manual.pdf",
                 mime="application/pdf"
@@ -1028,7 +1028,7 @@ def main():
     try:
         with open("data_template.csv", "rb") as f:
             st.sidebar.download_button(
-                label="📊 Download Data Template",
+                label="📊Data Template",
                 data=f,
                 file_name="data_template.csv",
                 mime="text/csv"
@@ -1040,6 +1040,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
