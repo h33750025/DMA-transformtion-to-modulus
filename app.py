@@ -495,7 +495,7 @@ def page_fitting():
                 
             # --- CHANGE 3: Update Labels ---
             ax.set_xlabel("Frequency (Hz)")
-            ax.set_ylabel("Modulus (MPa)")
+            ax.set_ylabel("Storage Modulus (MPa)")
             ax.set_title("Model Fitting")
             
             ax.text(0.05, 0.95, f"$R^2 = {params['r2']:.4f}$", 
@@ -599,7 +599,7 @@ def page_params_per_temp():
         except Exception as e:
             pass
 
-    ax.set_xlabel('Reduced Frequency (Hz)')
+    ax.set_xlabel('Frequency (Hz)')
     ax.set_ylabel('Storage Modulus (MPa)')
     ax.set_title('Master Curve for All Reference Temperatures')
     
@@ -1078,6 +1078,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
