@@ -778,7 +778,7 @@ def page_elastic_modulus():
             ax1.tick_params(axis='both', which='major')
             ax1.set_xlim(strain_rates_to_plot[0], strain_rates_to_plot[-1])
             ax1.set_title('Modulus vs Strain Rate for Different Temperatures')
-            ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
+            ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left', title="Temperature (°C)")
             add_watermark(ax1)
             st.pyplot(fig1)
             # 3. Layout: Spacer on left, Button on right
@@ -853,8 +853,7 @@ def page_elastic_modulus():
                     mime="text/csv",
                     use_container_width=True
                 )
-            #st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
-            
+
     else:
         st.info("Click 'Run Prediction' to start calculations.")
 
@@ -1079,6 +1078,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
