@@ -992,9 +992,25 @@ def page_elastic_modulus():
 # ==========================================
 # Main Navigation
 # ==========================================
+# def main():
+#     st.sidebar.title("NYU-ViscoMOD")
+    
+#     pages = {
+#         "1. Load & Visualize": page_load_and_visualize,
+#         #"2. Master Curve": page_tts,#
+#         "2. Curve Fitting": page_fitting,
+#         "3. Master Curves Fitting": page_params_per_temp,
+#         #"4. Stress-Strain Curve": page_stress_strain_curve,#
+#         "4. Elastic Modulus": page_elastic_modulus
+#     }
+    
+#     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
+#     pages[selection]()
+
 def main():
     st.sidebar.title("NYU-ViscoMOD")
     
+    # --- 1. Navigation Menu ---
     pages = {
         "1. Load & Visualize": page_load_and_visualize,
         #"2. Master Curve": page_tts,#
@@ -1005,10 +1021,29 @@ def main():
     }
     
     selection = st.sidebar.radio("Go to Step:", list(pages.keys()))
+    
+    # --- 2. Add Download Button to Sidebar ---
+    st.sidebar.markdown("---") # Add a separator line
+    st.sidebar.markdown("### User Manual")
+    
+    # Try/Except block ensures the app doesn't crash if the file is missing
+    try:
+        with open("manual.pdf", "rb") as f:
+            st.sidebar.download_button(
+                label="📄 Download User Manual",
+                data=f,
+                file_name="NYU_ViscoMOD_Manual.pdf",
+                mime="application/pdf"
+            )
+    except FileNotFoundError:
+        st.sidebar.warning("Manual file not found.")
+
+    # --- 3. Render Selected Page ---
     pages[selection]()
 
 if __name__ == "__main__":
     main()
+
 
 
 
