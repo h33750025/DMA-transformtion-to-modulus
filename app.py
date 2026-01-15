@@ -722,7 +722,7 @@ def page_elastic_modulus():
 
                 for rate in strain_rates_to_plot:
                     current_op += 1
-                    progress_bar.progress(int(current_op / total_ops * 100), text=f"Processing {ref_temp}°C | Strain Rate {rate} ($s^{-1}$)")
+                    progress_bar.progress(int(current_op / total_ops * 100), text=r"Processing {ref_temp}°C | Strain Rate {rate} ($s^{-1}$)")
 
                     time_min_rate = strain_min / rate
                     time_max_rate = strain_max / rate
@@ -1055,6 +1055,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
