@@ -360,7 +360,8 @@ def page_load_and_visualize():
 #             )
 ###############################################################
 def page_fitting():
-    st.title("Step 2: Curve Fitting")data = st.session_state.data
+    st.title("Step 2: Curve Fitting")
+    data = st.session_state.data
     ref_temp = min(data["Temperature"].unique())
     extended = data[data["Temperature"] == ref_temp].sort_values('Frequency')
     shift_factors = {ref_temp: 1.0}
@@ -383,6 +384,7 @@ def page_fitting():
         
     st.session_state.analysis_shift_factors = shift_factors
     st.session_state.master_curve_data = extended
+    
     #if not st.session_state.analysis_shift_factors: return st.warning("Run Step 2 first.")
     # Use a single st.markdown call with inline LaTeX ($...$)
     st.markdown(r"Curve fitting function used:  $E'(\omega) = A \tanh(B \log(\omega) + C) + D$")
@@ -1007,6 +1009,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
