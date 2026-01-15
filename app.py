@@ -642,7 +642,7 @@ def page_params_per_temp():
 #=================================================================
 def page_elastic_modulus():
     st.title("Step 4: Elastic Modulus Prediction")
-    st.markdown(r"Predicts **Elastic Modulus ($E$)** using numerical integration of the stress history.")
+    #st.markdown(r"**Elastic Modulus ($E$)** .")
 
     # --- Check Prerequisites ---
     if st.session_state.fitted_params is None: 
@@ -670,7 +670,7 @@ def page_elastic_modulus():
         st.session_state.modulus_results_df = None
 
     # Run Button
-    run_sim = st.button("Run Simulation", type="primary")
+    run_sim = st.button("Run Prediction", type="primary")
 
     # --- 2. Calculation Logic (Runs ONLY if Button Clicked) ---
     if run_sim:
@@ -713,10 +713,10 @@ def page_elastic_modulus():
         # Main Calculation Loop
         results = []
         total_ops = len(abcd_parameters) * len(strain_rates_to_plot)
-        progress_bar = st.progress(0, text="Calculating Modulus...")
+        progress_bar = st.progress(0, text="Predicting Modulus...")
         current_op = 0
 
-        with st.spinner("Integrating... this may take a moment."):
+        with st.spinner("Estimating... this may take a moment."):
             for params in abcd_parameters:
                 ref_temp, a, b, c, d = params
                 final_cumulative_integrals = []
@@ -817,7 +817,7 @@ def page_elastic_modulus():
             st.download_button("📄 Download Results (CSV)", csv, "Modulus_Simulation_Results.csv", "text/csv")
             
     else:
-        st.info("Click 'Run Simulation' to start calculations.")
+        st.info("Click 'Run Prediction' to start calculations.")
 
 # =================== strain stress curve ==========================================
 # def page_stress_strain_curve():
@@ -1009,6 +1009,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
