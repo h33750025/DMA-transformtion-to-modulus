@@ -781,11 +781,20 @@ def page_elastic_modulus():
             ax1.legend(bbox_to_anchor=(1.01, 1), loc='upper left')
             add_watermark(ax1)
             st.pyplot(fig1)
-            
+            # 3. Layout: Spacer on left, Button on right
             buf1 = io.BytesIO()
             fig1.savefig(buf1, format="png", bbox_inches='tight', dpi=500)
             buf1.seek(0)
-            st.download_button("💾 Download Graph", buf1, "Modulus_vs_Strain_Rate.png", "image/png")
+            buff_col, button_col = st.columns([5, 2]) 
+            with button_col:
+                st.download_button(
+                    label="💾 Download Graph",
+                    data=buf1,
+                    file_name="Modulus_vs_Strain_Rate.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+            #st.download_button("💾 Download Graph", buf1, "Modulus_vs_Strain_Rate.png", "image/png")
 
         with tab2:
             fig2 = Figure(figsize=(10, 6))
@@ -1055,6 +1064,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
