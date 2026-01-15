@@ -102,8 +102,8 @@ if 'master_curve_data' not in st.session_state: st.session_state.master_curve_da
 if 'param_per_temp' not in st.session_state: st.session_state.param_per_temp = None
 
 # Initialize Global Bounds if they don't exist
-if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 500.0
-if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 500.0
+if 'global_a_upper' not in st.session_state: st.session_state.global_a_upper = 100.0
+if 'global_d_upper' not in st.session_state: st.session_state.global_d_upper = 100.0
 
 # ==========================================
 # Pages
@@ -430,8 +430,8 @@ def page_fitting():
         st.markdown("### Fitting Bounds")
 
         # Real-time fitting sliders using Global Defaults
-        a_high = st.slider("Upper Bound 'A'", 10.0, 5000.0, st.session_state.global_a_upper, key="s5_a")
-        d_high = st.slider("Upper Bound 'D'", 10.0, 5000.0, st.session_state.global_d_upper, key="s5_d")
+        a_high = st.slider("Upper Bound 'A'", 10.0, 2000.0, st.session_state.global_a_upper, key="s5_a")
+        d_high = st.slider("Upper Bound 'D'", 10.0, 2000.0, st.session_state.global_d_upper, key="s5_d")
         
         # Update Global State
         st.session_state.global_a_upper = a_high
@@ -533,8 +533,8 @@ def page_params_per_temp():
     with col_ctrl:
         st.subheader("Fitting Bounds")
         # Initialize with Global State
-        a_high = st.slider("Upper Bound for 'A'", 10.0, 5000.0, st.session_state.global_a_upper, key="s6_a")
-        d_high = st.slider("Upper Bound for 'D'", 10.0, 5000.0, st.session_state.global_d_upper, key="s6_d")
+        a_high = st.slider("Upper Bound for 'A'", 10.0, 2000.0, st.session_state.global_a_upper, key="s6_a")
+        d_high = st.slider("Upper Bound for 'D'", 10.0, 2000.0, st.session_state.global_d_upper, key="s6_d")
         
         # Update Global State (Sync with Step 3)
         st.session_state.global_a_upper = a_high
@@ -1040,6 +1040,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
